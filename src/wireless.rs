@@ -89,6 +89,7 @@ impl Wireless {
         if n == 0 {
             return Ok(None);
         }
+        if n != PACKET_LEN { return Err(Error::BadResponse); }
         Ok(Some(buf))
     }
 
@@ -158,7 +159,7 @@ impl Wireless {
     }
 
     pub fn read(&self, cmd: u8, sub: u8, len: usize) -> Result<Vec<u8>> {
-        'retry: for _ in 0..5 {
+        'retry: for _ in 0..6 {
             self.drain();
             let mut req = [0u8; PACKET_LEN];
             req[0] = REPORT_ID;
@@ -169,42 +170,18 @@ impl Wireless {
             req[19] = checksum(&req);
             self.dev.write(&req)?;
 
-            let mut out = vec![0u8; len];
-            let mut seen = Vec::new();
-            let mut got = 0usize;
-            loop {
-                let Some(r) = self.recv()? else {
-                    continue 'retry;
-                };
-                if r[0] == 0xFF {
-                    return Err(Error::BadResponse);
-                }
-                if r[1] != cmd {
-                    continue;
-                }
-                if r[2] & 0x80 != 0 {
-                    continue 'retry;
-                }
-                let total = (r[2] & 0x7F) as usize;
-                let index = r[3] as usize;
-                if !seen.contains(&index) {
-                    seen.push(index);
-                    let n = ((r[4] & 0x0F) as usize).min(DATA_LEN);
-                    let off = index * DATA_LEN;
-                    if off < len {
-                        let n = n.min(len - off);
-                        out[off..off + n].copy_from_slice(&r[5..5 + n]);
-                        got += n;
-                    }
-                }
-                if index + 1 >= total {
-                    if got >= len || seen.len() >= total {
-                        return Ok(out);
-                    }
-                    sleep(Duration::from_millis(100));
-                    continue 'retry;
+            let mut stream = crate::wireless_read::ReadStream::new(cmd, sub, len);
+            let deadline = std::time::Instant::now() + Duration::from_secs(3);
+            for _ in 0..512 {
+                if std::time::Instant::now() >= deadline { break; }
+                let Some(r) = self.recv()? else { break; };
+                match stream.push(&r) {
+                    Ok(Some(out)) => return Ok(out),
+                    Ok(None) => {},
+                    Err(_) => { sleep(Duration::from_millis(100)); continue 'retry; }
                 }
             }
+            sleep(Duration::from_millis(100));
         }
         Err(Error::Timeout)
     }

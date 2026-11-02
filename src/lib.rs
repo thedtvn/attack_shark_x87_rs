@@ -10,18 +10,23 @@
 //! # Ok::<(), attack_shark_x87::Error>(())
 //! ```
 
+pub mod controller;
+pub mod macros;
 pub mod keymap;
 pub mod layout;
 pub mod led;
 pub mod protocol;
 pub mod realtime;
 pub mod wireless;
+mod wireless_read;
 
 use std::thread::sleep;
 use std::time::Duration;
 
 use hidapi::{HidApi, HidDevice};
 
+pub use controller::ControllerAction;
+pub use macros::{Macro, MacroAction, MacroBank, MacroEvent, MacroRepeat};
 pub use keymap::{KeyAction, KeyMatrix};
 pub use led::{Effect, EffectSettings, LedConfig, PerKeyColors, RgbTable};
 pub use protocol::Command;
@@ -267,6 +272,14 @@ impl Keyboard {
 
     /// Read a data block over whichever transport is in use.
     pub fn read_block(&self, block: Block, sub: u8, len: usize) -> Result<Vec<u8>> {
+        if block == Block::Macro {
+            if sub != 0 || len != macros::BANK_SIZE { return Err(Error::InvalidArgument("macro read requires full 4096-byte bank")); }
+            if let Transport::Wireless(w) = &self.t {
+                let mut bank = Vec::with_capacity(macros::BANK_SIZE);
+                for page in 0..8 { bank.extend(w.read(wcmd::GET_MACRO, page, 512)?); }
+                return Ok(bank);
+            }
+        }
         match &self.t {
             Transport::Wired { .. } => self.read_raw(block.wired(), sub, len),
             Transport::Wireless(_) => {
@@ -278,6 +291,20 @@ impl Keyboard {
 
     /// Write a data block over whichever transport is in use.
     pub fn write_block(&self, block: Block, sub: u8, data: &[u8]) -> Result<()> {
+        if block == Block::Macro {
+            if sub != 0 { return Err(Error::InvalidArgument("macro bank sub-index must be zero")); }
+            if data.len() != macros::BANK_SIZE { return Err(Error::InvalidArgument("macro bank must be 4096 bytes")); }
+            return match &self.t {
+                Transport::Wired { .. } => self.write_raw(block.wired(), 0, data),
+                Transport::Wireless(w) => {
+                    for (page, bytes) in data.chunks(512).enumerate() {
+                        w.write(wcmd::SET_MACRO, page as u8, bytes, 6)?;
+                        sleep(Duration::from_millis(100));
+                    }
+                    Ok(())
+                }
+            };
+        }
         let cmd = match &self.t {
             Transport::Wired { .. } => block.wired(),
             Transport::Wireless(_) => block.wireless().0,
@@ -385,6 +412,7 @@ impl Keyboard {
     }
 
     pub fn set_key_matrix(&self, layer: u8, m: &KeyMatrix) -> Result<()> {
+        if m.0.len() != MATRIX_LEN { return Err(Error::InvalidArgument("key matrix must contain 128 entries")); }
         if layer >= LAYERS {
             return Err(Error::InvalidArgument("layer must be < 4"));
         }
@@ -395,10 +423,50 @@ impl Keyboard {
 
     /// Remap one key. `key` is a name from [`layout::KEYS`].
     pub fn remap_key(&self, layer: u8, key: &str, action: KeyAction) -> Result<()> {
+        action.try_encode()?;
         let idx = layout::key_index(key).ok_or(Error::InvalidArgument("unknown key name"))?;
         let mut m = self.key_matrix(layer)?;
         m.set(idx, action);
         self.set_key_matrix(layer, &m)
+    }
+
+    // ---- onboard macros (experimental) ------------------------------------
+
+    /// Read USB bank or eight tagged 512-byte receiver pages (experimental).
+    pub fn macro_bank(&self) -> Result<macros::MacroBank> {
+        macros::MacroBank::decode(&self.read_block(Block::Macro, 0, macros::BANK_SIZE)?)
+    }
+
+    /// Replace the shared bank, preserving slot numbering. Back up first:
+    /// every layer referencing an overwritten slot will use its new contents.
+    /// Checks dangling references before writing. Returns true only when a
+    /// complete read-back matched (USB or experimental tagged receiver pages).
+    /// A failed upload may leave a partially written bank. No keys are assigned.
+    pub fn replace_macro_bank(&self, bank: &macros::MacroBank) -> Result<bool> {
+        if bank.macros.is_empty() { return Err(Error::InvalidArgument("refusing empty macro bank upload")); }
+        self.replace_macro_bank_inner(bank)
+    }
+
+    /// Explicitly clear the bank. Refuses while ANY layer still references a macro.
+    /// Back up with `macro_bank` first. A failed write is not atomic.
+    pub fn clear_macro_bank(&self) -> Result<bool> {
+        self.replace_macro_bank_inner(&macros::MacroBank::default())
+    }
+
+    fn replace_macro_bank_inner(&self, bank: &macros::MacroBank) -> Result<bool> {
+        let bytes = bank.encode()?;
+        for layer in 0..LAYERS {
+            let matrix = self.key_matrix(layer)?;
+            for entry in matrix.0 {
+                let b = entry.to_le_bytes();
+                if b[0] == 3 && b[3] as usize >= bank.macros.len() {
+                    return Err(Error::InvalidArgument("existing layer references a macro slot missing from replacement bank"));
+                }
+            }
+        }
+        self.write_block(Block::Macro, 0, &bytes)?;
+        if self.read_block(Block::Macro, 0, macros::BANK_SIZE)? != bytes { return Err(Error::BadResponse); }
+        Ok(true)
     }
 
     // ---- device options ---------------------------------------------------

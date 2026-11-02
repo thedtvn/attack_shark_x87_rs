@@ -5,6 +5,9 @@ cable or the 2.4G receiver, without the vendor software.
 
 The protocol was reverse engineered from the vendor tool `OemDrv.exe` with
 Ghidra. It is documented in [PROTOCOL.md](PROTOCOL.md).
+Macro event encoding, buffer layout and repeat-mode research are in
+[MACROS.md](MACROS.md). An **experimental** macro codec and explicit replacement
+API are available; macro playback has not been validated on hardware.
 
 Browser version (WebHID + React): [attack_shark_x87_web](https://github.com/thedtvn/attack_shark_x87_web)
 
@@ -15,12 +18,13 @@ Browser version (WebHID + React): [attack_shark_x87_web](https://github.com/thed
 | Lighting effects (19), brightness, speed, palette colour | ✓ | ✓ verified |
 | Per-effect 7-colour palettes | ✓ | ✓ |
 | Per-key RGB (custom mode) | ✓ | ✓ |
-| Key remap, 4 layers (keys, modifiers, media, mouse, Fn, disable) | ✓ | ✓ verified (read) |
+| Key remap, 4 layers (keys, modifiers, media, mouse, Fn/Fn2, disable) | ✓ | ✓ verified (read) |
 | Tap on/off + sensitivity | ✓ | ✓ verified |
 | Sleep timeout | ✓ | ✓ verified |
 | Debounce (including beyond the app's 5 stages) | ✓ | ✓ verified |
 | Realtime frames ("music mode" transport) | untested | ✓ verified |
 | Factory reset | ✓ | ✓ |
+| Experimental macro bank upload + repeat bindings | codec + read-back | experimental paged read/write + comparison |
 
 "Verified" means tested against a real keyboard. The USB path follows the same
 decompiled code but has not been tested on hardware yet.
@@ -111,3 +115,74 @@ Use at your own risk.
 ## License
 
 [MIT](LICENSE) © 2026 The DT
+
+## Controller bindings
+
+```rust,no_run
+use attack_shark_x87::{Keyboard, KeyAction, ControllerAction};
+# fn example() -> Result<(), attack_shark_x87::Error> {
+let kb = Keyboard::open()?;
+// Explicit assignments only. These examples are not executed automatically.
+kb.remap_key(0, "App", KeyAction::Fn2)?;
+kb.remap_key(1, "4", KeyAction::Controller(ControllerAction::Receiver24G))?;
+kb.remap_key(1, "CapsLock", KeyAction::Controller(ControllerAction::LightBarMode))?;
+# Ok(()) }
+```
+
+`ControllerAction::ALL` includes Bluetooth 1/2/3, receiver, battery display,
+Windows-key lock, reset, main backlight and light-bar controls. `name()`,
+`factory_key()` and `is_sensitive()` provide caller-facing metadata. Host
+media controls remain `KeyAction::Consumer`; application/task switching and
+input-method defaults are constants in `controller`. `factory_fn1_action()`
+returns the vendor FN1 mapping. FN2/Tap are not assumed to share FN1 defaults.
+
+FN encodes as `0D 00 00 00`; FN2 as `0D 01 00 00`. Unknown words stay `Raw`.
+`KeyAction::try_encode()` validates macro slots/counts without panicking;
+`remap_key` uses it before device I/O. Connection controls may disconnect the
+keyboard, and reset may erase settings. Remapped hold behavior is experimental.
+`cargo run --example controller` prints bytes offline without opening hardware.
+
+## Experimental onboard macros
+
+Macro playback is encoded from reverse-engineered vendor code and covered by
+byte fixtures, **not hardware playback verification**. Until-released and
+until-any-key mode semantics remain experimental.
+
+```rust,no_run
+use attack_shark_x87::{Keyboard, KeyAction};
+use attack_shark_x87::macros::{Macro, MacroAction, MacroEvent, MacroBank, MacroRepeat};
+# fn example() -> Result<(), attack_shark_x87::Error> {
+let kb = Keyboard::open()?;
+// Export this backup before replacing anything (2.4G reads are experimental).
+let backup = kb.macro_bank()?;
+let bank = MacroBank { macros: vec![Macro {
+    name: "Type A".into(),
+    events: vec![
+        MacroEvent { action: MacroAction::Key { usage: 4, down: true }, delay_ms: 0 },
+        MacroEvent { action: MacroAction::Key { usage: 4, down: false }, delay_ms: 50 },
+    ],
+}] };
+// EXPLICIT DESTRUCTIVE OPERATION: replaces the shared bank used by all layers.
+let read_back_verified = kb.replace_macro_bank(&bank)?;
+// Bind only after successful upload (choose a key deliberately).
+kb.remap_key(0, "F12", KeyAction::Macro { slot: 0, repeat: MacroRepeat::Times(1) })?;
+# let _ = (backup, read_back_verified);
+# Ok(()) }
+```
+
+- Names: up to 30 UTF-16 code units. Delays: 0..1,048,575 ms.
+- Bank: 4096 bytes; 32 macros is a conservative client limit, not a measured
+  firmware limit. Events must fit alongside names and the directory.
+- Slot numbers are shared across all four layers. Replacing slot 0 changes
+  **every key** referencing it. Missing referenced slots are refused before upload.
+- USB and wireless uploads are compared against complete read-back. Wireless
+  reads use command `43`, eight tagged 512-byte pages; writes use command `03`.
+  Vendor macro read wrapper `00487d20` is confirmed in Ghidra. A 2.4G
+  write + read-back + restore was verified on hardware; playback is not yet
+  validated. Failure leaves the bank potentially partially written.
+- `cargo run --example wireless_macro_check` reads the bank read-only.
+- `clear_macro_bank()` explicitly clears an unreferenced bank. Ordinary
+  `replace_macro_bank` still refuses an accidentally empty list.
+- Upload is not atomic; interruption can leave partial data. Keep your backup.
+- `cargo run --example macro` only builds/prints bytes offline. The
+  `--upload` flag explicitly enables the replacement; it never assigns a key.

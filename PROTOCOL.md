@@ -112,7 +112,9 @@ index from `KB.ini` (last column of `Kn=`).
 * `00 mods k2 k1` — keyboard key (HID usage k1, optional k2, modifier bitmask)
 * `02 00 hi lo`   — consumer usage (e.g. `E9` = Vol+)
 * `01 n 01 00`    — mouse button
-* `0D 00 00 00`   — Fn
+* `0D 00 00 00`   — Fn / FN1 layer key (vendor virtual key FA)
+* `0D 01 00 00`   — FN2 layer key (vendor virtual key FB); established by
+  `G5KB_ConvertKeyCode` at `0x0048dc80`, not yet hardware-tested
 * `05 …`          — macro
 
 ## 2.4G dongle (`CDev3632`, vtable `0x00610544`)
