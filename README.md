@@ -180,7 +180,10 @@ kb.remap_key(0, "F12", KeyAction::Macro { slot: 0, repeat: MacroRepeat::Times(1)
   Vendor macro read wrapper `00487d20` is confirmed in Ghidra. A 2.4G
   write + read-back + restore was verified on hardware; playback is not yet
   validated. Failure leaves the bank potentially partially written.
-- `cargo run --example wireless_macro_check` reads the bank read-only.
+- `cargo run --example wireless_macro_check` reads the bank read-only and
+  prints timings (2.4G: ~1.9 s for the bank, ~1.9 s for four layers).
+- The receiver cannot pipeline requests; reads are sequential. Dropped
+  packets are kept across quick re-requests rather than restarting blindly.
 - `clear_macro_bank()` explicitly clears an unreferenced bank. Ordinary
   `replace_macro_bank` still refuses an accidentally empty list.
 - Upload is not atomic; interruption can leave partial data. Keep your backup.

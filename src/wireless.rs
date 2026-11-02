@@ -84,8 +84,12 @@ pub(crate) struct Wireless {
 
 impl Wireless {
     fn recv(&self) -> Result<Option<[u8; PACKET_LEN]>> {
+        self.recv_timeout(self.timeout_ms)
+    }
+
+    fn recv_timeout(&self, timeout_ms: i32) -> Result<Option<[u8; PACKET_LEN]>> {
         let mut buf = [0u8; PACKET_LEN];
-        let n = self.dev.read_timeout(&mut buf, self.timeout_ms)?;
+        let n = self.dev.read_timeout(&mut buf, timeout_ms)?;
         if n == 0 {
             return Ok(None);
         }
@@ -158,8 +162,14 @@ impl Wireless {
         Ok(())
     }
 
+    /// Read one block. Measured on hardware: a 512-byte page streams in about
+    /// 160 ms and the receiver cannot pipeline requests (a new request aborts
+    /// the previous stream). Radio drops are common, so identical packets are
+    /// kept across re-requests of the same block and a stream that goes idle is
+    /// re-requested quickly; conflicting data restarts assembly from scratch.
     pub fn read(&self, cmd: u8, sub: u8, len: usize) -> Result<Vec<u8>> {
-        'retry: for _ in 0..6 {
+        let mut stream = crate::wireless_read::ReadStream::new(cmd, sub, len);
+        for _ in 0..8 {
             self.drain();
             let mut req = [0u8; PACKET_LEN];
             req[0] = REPORT_ID;
@@ -170,18 +180,22 @@ impl Wireless {
             req[19] = checksum(&req);
             self.dev.write(&req)?;
 
-            let mut stream = crate::wireless_read::ReadStream::new(cmd, sub, len);
-            let deadline = std::time::Instant::now() + Duration::from_secs(3);
+            let mut first = true;
             for _ in 0..512 {
-                if std::time::Instant::now() >= deadline { break; }
-                let Some(r) = self.recv()? else { break; };
+                let Some(r) = self.recv_timeout(if first { 700 } else { 120 })? else { break };
+                if r[1] == cmd {
+                    first = false;
+                }
                 match stream.push(&r) {
                     Ok(Some(out)) => return Ok(out),
-                    Ok(None) => {},
-                    Err(_) => { sleep(Duration::from_millis(100)); continue 'retry; }
+                    Ok(None) => {}
+                    Err(_) => {
+                        stream = crate::wireless_read::ReadStream::new(cmd, sub, len);
+                        break;
+                    }
                 }
             }
-            sleep(Duration::from_millis(100));
+            sleep(Duration::from_millis(20));
         }
         Err(Error::Timeout)
     }
