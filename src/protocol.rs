@@ -84,6 +84,16 @@ pub fn chunk_count(len: usize) -> usize {
     len.div_ceil(CHUNK_LEN)
 }
 
+/// Validate a numbered USB reply. Short (136-byte) settings replies still
+/// include the report ID and the complete eight-byte header.
+pub fn parse_reply<'a>(data: &'a [u8], request: &[u8; REPORT_LEN]) -> crate::Result<&'a [u8]> {
+    let size = u16::from_le_bytes([request[6], request[7]]) as usize;
+    if size > CHUNK_LEN || data.len() < HEADER_LEN + size || data[..HEADER_LEN] != request[..HEADER_LEN] {
+        return Err(crate::Error::BadResponse);
+    }
+    Ok(&data[HEADER_LEN..HEADER_LEN + size])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

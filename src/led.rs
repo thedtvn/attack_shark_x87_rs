@@ -171,7 +171,7 @@ impl LedConfig {
 
     /// Debounce stage as shown by the app (1-based). Stored as stage - 1.
     pub fn debounce_stage(&self) -> u8 {
-        self.0[OFF_DEBOUNCE] + 1
+        self.0[OFF_DEBOUNCE].saturating_add(1)
     }
 
     /// Set debounce stage (1-based). The app offers 1..=5; larger values are

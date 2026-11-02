@@ -125,28 +125,42 @@ impl Keyboard {
     }
 
     pub fn open_with(api: &HidApi) -> Result<Self> {
-        Self::open_wired(api).or_else(|_| Self::open_wireless(api))
+        match Self::open_wired(api) {
+            Err(Error::NotFound) => Self::open_wireless(api),
+            result => result,
+        }
     }
 
     /// USB cable: collection `FF00:0001` with a 0x208 byte feature report
     /// (`CDevG5KB::FindHIDDevice`, `0x0048c630`).
+    ///
+    /// The keyboard exposes three `FF00:0001` collections (4-byte input,
+    /// 6-byte feature, 520-byte feature); only the 520-byte one accepts the
+    /// protocol, so each candidate is probed with a LED-config read.
     pub fn open_wired(api: &HidApi) -> Result<Self> {
-        let info = api
-            .device_list()
-            .find(|d| {
-                d.vendor_id() == VID_WIRED
-                    && d.product_id() == PID_WIRED
-                    && d.usage_page() == USAGE_PAGE
-                    && d.usage() == USAGE
-            })
-            .ok_or(Error::NotFound)?;
-        Ok(Keyboard {
-            t: Transport::Wired {
-                dev: info.open_device(api)?,
-                report_id: REPORT_ID_X87,
-                delay: Duration::from_millis(20),
-            },
-        })
+        let mut last = Error::NotFound;
+        for info in api.device_list().filter(|d| {
+            d.vendor_id() == VID_WIRED
+                && d.product_id() == PID_WIRED
+                && d.usage_page() == USAGE_PAGE
+                && d.usage() == USAGE
+        }) {
+            let dev = match info.open_device(api) {
+                Ok(d) => d,
+                Err(e) => {
+                    last = e.into();
+                    continue;
+                }
+            };
+            let kb = Keyboard {
+                t: Transport::Wired { dev, report_id: REPORT_ID_X87, delay: Duration::from_millis(20) },
+            };
+            match kb.led_config() {
+                Ok(_) => return Ok(kb),
+                Err(e) => last = e,
+            }
+        }
+        Err(last)
     }
 
     /// 2.4G dongle: collection `FF02:0002`, 20 byte reports (`CDev3632`).
@@ -243,10 +257,7 @@ impl Keyboard {
                     let mut buf = [0u8; REPORT_LEN];
                     buf[0] = *report_id;
                     let got = dev.get_feature_report(&mut buf)?;
-                    if got < HEADER_LEN + size {
-                        return Err(Error::BadResponse);
-                    }
-                    out.extend_from_slice(&buf[HEADER_LEN..HEADER_LEN + size]);
+                    out.extend_from_slice(parse_reply(&buf[..got], &pkt)?);
                 }
                 Ok(out)
             }
@@ -296,7 +307,9 @@ impl Keyboard {
 
     pub fn led_config(&self) -> Result<LedConfig> {
         let v = self.read_block(Block::LedConfig, 0, led::LED_CONFIG_LEN)?;
-        Ok(LedConfig(v.try_into().unwrap()))
+        let cfg = LedConfig(v.try_into().map_err(|_| Error::BadResponse)?);
+        if !cfg.is_valid() { return Err(Error::BadResponse); }
+        Ok(cfg)
     }
 
     pub fn set_led_config(&self, cfg: &LedConfig) -> Result<()> {
