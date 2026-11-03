@@ -4,49 +4,32 @@
 //! Host media controls remain [`crate::KeyAction::Consumer`], not controllers.
 use crate::{Key, KeyAction};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u32)]
-pub enum ControllerAction {
-    Bluetooth1 = 0x05000007,
-    Bluetooth2 = 0x06000007,
-    Bluetooth3 = 0x07000007,
-    Receiver24G = 0x08000007,
-    BatteryLevel = 0x11000007,
-    WindowsKeyLock = 0x01000007,
-    /// Destructive. Factory shortcut: hold Fn + Space for three seconds.
-    FactoryReset = 0x04000007,
-    BacklightEffect = 0x00000008,
-    BacklightColor = 0x00000208,
-    LightingPowerSaving = 0x0a000007,
-    KeyboardLighting = 0x0b000007,
-    BacklightBrightnessUp = 0x00010308,
-    BacklightBrightnessDown = 0x00020308,
-    BacklightSpeedDown = 0x00020408,
-    BacklightSpeedUp = 0x00010408,
-    LightBarMode = 0x01000008,
-    LightBarColor = 0x01000208,
+crate::rs_macro::enum_meta! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    #[repr(u32)]
+    pub enum ControllerAction {
+        Bluetooth1 = 0x05000007,
+        Bluetooth2 = 0x06000007,
+        Bluetooth3 = 0x07000007,
+        Receiver24G = 0x08000007,
+        BatteryLevel = 0x11000007,
+        WindowsKeyLock = 0x01000007,
+        /// Destructive. Factory shortcut: hold Fn + Space for three seconds.
+        FactoryReset = 0x04000007,
+        BacklightEffect = 0x00000008,
+        BacklightColor = 0x00000208,
+        LightingPowerSaving = 0x0a000007,
+        KeyboardLighting = 0x0b000007,
+        BacklightBrightnessUp = 0x00010308,
+        BacklightBrightnessDown = 0x00020308,
+        BacklightSpeedDown = 0x00020408,
+        BacklightSpeedUp = 0x00010408,
+        LightBarMode = 0x01000008,
+        LightBarColor = 0x01000208,
+    }
 }
 
 impl ControllerAction {
-    pub const ALL: [Self; 17] = [
-        Self::Bluetooth1,
-        Self::Bluetooth2,
-        Self::Bluetooth3,
-        Self::Receiver24G,
-        Self::BatteryLevel,
-        Self::WindowsKeyLock,
-        Self::FactoryReset,
-        Self::BacklightEffect,
-        Self::BacklightColor,
-        Self::LightingPowerSaving,
-        Self::KeyboardLighting,
-        Self::BacklightBrightnessUp,
-        Self::BacklightBrightnessDown,
-        Self::BacklightSpeedDown,
-        Self::BacklightSpeedUp,
-        Self::LightBarMode,
-        Self::LightBarColor,
-    ];
     pub fn encode(self) -> u32 {
         self as u32
     }

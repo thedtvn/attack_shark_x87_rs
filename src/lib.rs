@@ -80,21 +80,25 @@ pub enum Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Connection {
-    Wired,
-    Wireless,
+crate::rs_macro::enum_meta! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum Connection {
+        Wired,
+        Wireless,
+    }
 }
 
-/// A logical data block, mapped to the right command on each transport.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Block {
-    KeyMatrix,
-    LedConfig,
-    Macro,
-    PerKeyColors,
-    RgbTable,
-    ScreenParam,
+crate::rs_macro::enum_meta! {
+    /// A logical data block, mapped to the right command on each transport.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum Block {
+        KeyMatrix,
+        LedConfig,
+        Macro,
+        PerKeyColors,
+        RgbTable,
+        ScreenParam,
+    }
 }
 
 impl Block {

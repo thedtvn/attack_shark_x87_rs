@@ -1,13 +1,13 @@
-//! Internal macros.
+//! `define_keys!`: the physical key table, written once.
 
 /// Define a key enum from a single table of `Variant => ("name", index)`.
 ///
 /// Each key's display name and LED / key-matrix index are written once, in
-/// one place. The macro generates:
+/// one place. Builds on [`enum_meta!`](super::enum_meta), so the enum also
+/// gets `COUNT`, `ALL`, `variant_name()` and `from_variant_name()`. Adds:
 ///
-/// - the enum (variants in table order, so derived `Ord` is table order),
-/// - `COUNT` and `ALL` (every key, in table order),
-/// - `index()`, `name()`, `from_index()` and `from_name()` (case-insensitive).
+/// - `index()`, `name()`,
+/// - `from_index()` and `from_name()` (case-insensitive display name).
 ///
 /// A duplicated index is a compile error.
 macro_rules! define_keys {
@@ -17,21 +17,17 @@ macro_rules! define_keys {
             $( $Variant:ident => ($name:literal, $index:literal) ),+ $(,)?
         }
     ) => {
-        $(#[$meta])*
-        $vis enum $Enum {
-            $(
-                #[doc = concat!("Key ", $name, " (LED / key-matrix index ", stringify!($index), ").")]
-                $Variant,
-            )+
+        $crate::rs_macro::enum_meta! {
+            $(#[$meta])*
+            $vis enum $Enum {
+                $(
+                    #[doc = concat!("Key ", $name, " (LED / key-matrix index ", stringify!($index), ").")]
+                    $Variant,
+                )+
+            }
         }
 
         impl $Enum {
-            /// Number of keys.
-            pub const COUNT: usize = [$(stringify!($Variant)),+].len();
-
-            /// Every key, in table order.
-            pub const ALL: [$Enum; Self::COUNT] = [$($Enum::$Variant),+];
-
             /// LED / key-matrix index.
             pub const fn index(self) -> u8 {
                 match self {

@@ -134,58 +134,60 @@ define_keys! {
     }
 }
 
-/// A named set of keys: one of the four key areas, or one physical cluster.
-///
-/// - **Areas** ([`KeyGroup::AREAS`]): `FKey`, `Main`, `Navigation`, `Arrows`.
-///   Together they cover every key once. `layout()` returns the area's
-///   clusters, e.g. `FKey` = `[[Esc], [F1..F4], [F5..F8], [F9..F12]]`.
-/// - **Clusters** ([`KeyGroup::CLUSTERS`]): runs of adjacent keys separated
-///   from the next by a gap, e.g. `F1F4` = `[F1, F2, F3, F4]`. `layout()`
-///   returns the single cluster, `[[F1, F2, F3, F4]]`.
-///
-/// [`LAYOUT`] arranges the clusters physically: keyboard → row → cluster.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-#[non_exhaustive]
-pub enum KeyGroup {
-    // ---- areas ----
-    /// Area: Esc and the function keys, `[Esc] [F1–F4] [F5–F8] [F9–F12]`.
-    FKey,
-    /// Area: the main block, one cluster per row from the number row down.
-    Main,
-    /// Area: `PrtSc ScrLock Pause`, `Insert Home PgUp`, `Delete End PgDn`.
-    Navigation,
-    /// Area: the arrow keys, `[Up]` then `[Left Down Right]`.
-    Arrows,
+crate::rs_macro::enum_meta! {
+    /// A named set of keys: one of the four key areas, or one physical cluster.
+    ///
+    /// - **Areas** ([`KeyGroup::AREAS`]): `FKey`, `Main`, `Navigation`, `Arrows`.
+    ///   Together they cover every key once. `layout()` returns the area's
+    ///   clusters, e.g. `FKey` = `[[Esc], [F1..F4], [F5..F8], [F9..F12]]`.
+    /// - **Clusters** ([`KeyGroup::CLUSTERS`]): runs of adjacent keys separated
+    ///   from the next by a gap, e.g. `F1F4` = `[F1, F2, F3, F4]`. `layout()`
+    ///   returns the single cluster, `[[F1, F2, F3, F4]]`.
+    ///
+    /// [`LAYOUT`] arranges the clusters physically: keyboard → row → cluster.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+    #[non_exhaustive]
+    pub enum KeyGroup {
+        // ---- areas ----
+        /// Area: Esc and the function keys, `[Esc] [F1–F4] [F5–F8] [F9–F12]`.
+        FKey,
+        /// Area: the main block, one cluster per row from the number row down.
+        Main,
+        /// Area: `PrtSc ScrLock Pause`, `Insert Home PgUp`, `Delete End PgDn`.
+        Navigation,
+        /// Area: the arrow keys, `[Up]` then `[Left Down Right]`.
+        Arrows,
 
-    // ---- physical clusters ----
-    /// Cluster `[Esc]`.
-    Esc,
-    /// Cluster `[F1 F2 F3 F4]`.
-    F1F4,
-    /// Cluster `[F5 F6 F7 F8]`.
-    F5F8,
-    /// Cluster `[F9 F10 F11 F12]`.
-    F9F12,
-    /// Cluster `[PrtSc ScrLock Pause]`.
-    PrintScrollPause,
-    /// Cluster `` [` 1 2 3 4 5 6 7 8 9 0 - = Backspace] ``.
-    NumberRow,
-    /// Cluster `[Insert Home PgUp]`.
-    InsertHomePgUp,
-    /// Cluster `[Tab Q W E R T Y U I O P [ ] \]`.
-    TopRow,
-    /// Cluster `[Delete End PgDn]`.
-    DeleteEndPgDn,
-    /// Cluster `[CapsLock A S D F G H J K L ; ' Enter]`.
-    HomeRow,
-    /// Cluster `[LShift Z X C V B N M , . / RShift]`.
-    ShiftRow,
-    /// Cluster `[Up]`.
-    ArrowUp,
-    /// Cluster `[LCtrl LWin LAlt Space RAlt Fn App RCtrl]`.
-    BottomRow,
-    /// Cluster `[Left Down Right]`.
-    ArrowLeftDownRight,
+        // ---- physical clusters ----
+        /// Cluster `[Esc]`.
+        Esc,
+        /// Cluster `[F1 F2 F3 F4]`.
+        F1F4,
+        /// Cluster `[F5 F6 F7 F8]`.
+        F5F8,
+        /// Cluster `[F9 F10 F11 F12]`.
+        F9F12,
+        /// Cluster `[PrtSc ScrLock Pause]`.
+        PrintScrollPause,
+        /// Cluster `` [` 1 2 3 4 5 6 7 8 9 0 - = Backspace] ``.
+        NumberRow,
+        /// Cluster `[Insert Home PgUp]`.
+        InsertHomePgUp,
+        /// Cluster `[Tab Q W E R T Y U I O P [ ] \]`.
+        TopRow,
+        /// Cluster `[Delete End PgDn]`.
+        DeleteEndPgDn,
+        /// Cluster `[CapsLock A S D F G H J K L ; ' Enter]`.
+        HomeRow,
+        /// Cluster `[LShift Z X C V B N M , . / RShift]`.
+        ShiftRow,
+        /// Cluster `[Up]`.
+        ArrowUp,
+        /// Cluster `[LCtrl LWin LAlt Space RAlt Fn App RCtrl]`.
+        BottomRow,
+        /// Cluster `[Left Down Right]`.
+        ArrowLeftDownRight,
+    }
 }
 
 // Each cluster's keys, written once. Every area, LAYOUT and the cluster

@@ -28,32 +28,34 @@ pub const REPORT_ID_OTHER: u8 = 0x09;
 
 pub const READ_FLAG: u8 = 0x80;
 
-/// Command bytes understood by the keyboard firmware.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum Command {
-    /// 6 byte device identification ("password"), read only, sub = 1.
-    Password = 0x02,
-    /// Key remap matrix, sub = layer (0..4), `MatrixLen * 4` bytes.
-    KeyMatrix = 0x03,
-    /// 128 byte lighting / settings block.
-    LedConfig = 0x04,
-    /// Macro buffer.
-    Macro = 0x05,
-    /// Per-key colours for "self-define" mode, sub = colour group.
-    PerKeyColors = 0x06,
-    /// Music / real time data (used by the audio visualiser).
-    MusicRealtime = 0x08,
-    /// Per-effect colour palette table.
-    LedRgbTable = 0x0A,
-    /// Screen parameters (models with a display).
-    ScreenParam = 0x0B,
-    /// GIF parameters (models with a display).
-    GifParam = 0x0D,
-    /// Second real time command (vtable slot 0x3c).
-    Realtime2 = 0x0E,
-    /// Factory reset, 1 byte payload.
-    Reset = 0x11,
+crate::rs_macro::enum_meta! {
+    /// Command bytes understood by the keyboard firmware.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    #[repr(u8)]
+    pub enum Command {
+        /// 6 byte device identification ("password"), read only, sub = 1.
+        Password = 0x02,
+        /// Key remap matrix, sub = layer (0..4), `MatrixLen * 4` bytes.
+        KeyMatrix = 0x03,
+        /// 128 byte lighting / settings block.
+        LedConfig = 0x04,
+        /// Macro buffer.
+        Macro = 0x05,
+        /// Per-key colours for "self-define" mode, sub = colour group.
+        PerKeyColors = 0x06,
+        /// Music / real time data (used by the audio visualiser).
+        MusicRealtime = 0x08,
+        /// Per-effect colour palette table.
+        LedRgbTable = 0x0A,
+        /// Screen parameters (models with a display).
+        ScreenParam = 0x0B,
+        /// GIF parameters (models with a display).
+        GifParam = 0x0D,
+        /// Second real time command (vtable slot 0x3c).
+        Realtime2 = 0x0E,
+        /// Factory reset, 1 byte payload.
+        Reset = 0x11,
+    }
 }
 
 /// Build one feature report.

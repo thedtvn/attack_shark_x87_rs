@@ -47,56 +47,36 @@ pub const MAX_LEVEL: u8 = 4;
 /// Colour index meaning "random / colourful".
 pub const COLOR_RANDOM: u8 = 7;
 
-/// Lighting effects. The value is the hardware id stored at config byte 0x0A
-/// (first column of `LedOptN` in `KB.ini`). Names come from `Text/en/text.xml`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum Effect {
-    FixedOn = 1,
-    Respire = 2,
-    Rainbow = 3,
-    FlashAway = 4,
-    Raindrops = 5,
-    RainbowWheel = 6,
-    RipplesShining = 7,
-    StarsTwinkle = 8,
-    ShadowDisappear = 9,
-    RetroSnake = 10,
-    NeonStream = 11,
-    Reaction = 12,
-    SineWave = 13,
-    RetinueScanning = 14,
-    RotatingWindmill = 15,
-    ColorfulWaterfall = 16,
-    Blossoming = 17,
-    RotatingStorm = 18,
-    /// Per-key colours ("Self-define"), see [`crate::Keyboard::set_per_key_colors`].
-    Custom = 21,
+crate::rs_macro::enum_meta! {
+    /// Lighting effects. The value is the hardware id stored at config byte 0x0A
+    /// (first column of `LedOptN` in `KB.ini`). Names come from `Text/en/text.xml`.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    #[repr(u8)]
+    pub enum Effect {
+        FixedOn = 1,
+        Respire = 2,
+        Rainbow = 3,
+        FlashAway = 4,
+        Raindrops = 5,
+        RainbowWheel = 6,
+        RipplesShining = 7,
+        StarsTwinkle = 8,
+        ShadowDisappear = 9,
+        RetroSnake = 10,
+        NeonStream = 11,
+        Reaction = 12,
+        SineWave = 13,
+        RetinueScanning = 14,
+        RotatingWindmill = 15,
+        ColorfulWaterfall = 16,
+        Blossoming = 17,
+        RotatingStorm = 18,
+        /// Per-key colours ("Self-define"), see [`crate::Keyboard::set_per_key_colors`].
+        Custom = 21,
+    }
 }
 
 impl Effect {
-    pub const ALL: [Effect; 19] = [
-        Effect::FixedOn,
-        Effect::Respire,
-        Effect::Rainbow,
-        Effect::FlashAway,
-        Effect::Raindrops,
-        Effect::RainbowWheel,
-        Effect::RipplesShining,
-        Effect::StarsTwinkle,
-        Effect::ShadowDisappear,
-        Effect::RetroSnake,
-        Effect::NeonStream,
-        Effect::Reaction,
-        Effect::SineWave,
-        Effect::RetinueScanning,
-        Effect::RotatingWindmill,
-        Effect::ColorfulWaterfall,
-        Effect::Blossoming,
-        Effect::RotatingStorm,
-        Effect::Custom,
-    ];
-
     pub fn from_id(id: u8) -> Option<Effect> {
         Self::ALL.iter().copied().find(|e| *e as u8 == id)
     }
