@@ -54,4 +54,8 @@ fn key_positions_example() {
     assert_eq!(w, 66.0);
     assert_eq!(Key::at(30, 40), Some(Key::Esc));
     assert_eq!(Key::F4.right(), Some(Key::F5));
+    use attack_shark_x87::KeyGroup;
+    assert_eq!(KeyGroup::FKey.rect(), Rect::new(18, 20, 536, 53));
+    assert_eq!(KeyGroup::Navigation.rect(), Rect::new(548, 20, 650, 135));
+    assert_eq!(KeyGroup::at(30, 40), Some(KeyGroup::FKey));
 }

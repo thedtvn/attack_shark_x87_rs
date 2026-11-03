@@ -359,6 +359,13 @@ impl Rect {
         ((self.x1 + self.x2) as f32 / 2.0, (self.y1 + self.y2) as f32 / 2.0)
     }
 
+    /// The smallest rectangle containing both `self` and `other`.
+    pub const fn union(self, other: Rect) -> Rect {
+        const fn min(a: u16, b: u16) -> u16 { if a < b { a } else { b } }
+        const fn max(a: u16, b: u16) -> u16 { if a > b { a } else { b } }
+        Rect::new(min(self.x1, other.x1), min(self.y1, other.y1), max(self.x2, other.x2), max(self.y2, other.y2))
+    }
+
     /// Whether the point `(x, y)` is inside the rectangle (for hit-testing).
     pub const fn contains(self, x: u16, y: u16) -> bool {
         x >= self.x1 && x < self.x2 && y >= self.y1 && y < self.y2
@@ -474,6 +481,7 @@ impl Key {
     }
 
     /// The key whose rectangle contains `(x, y)` in image pixels, if any.
+    /// See also [`KeyGroup::at`].
     pub fn at(x: u16, y: u16) -> Option<Key> {
         Key::ALL.into_iter().find(|k| k.rect().contains(x, y))
     }
@@ -492,6 +500,32 @@ impl Key {
     /// The key immediately to the right in the same physical row, if any.
     pub fn right(self) -> Option<Key> {
         self.row_keys().filter(|k| k.rect().x1 >= self.rect().x2).min_by_key(|k| k.rect().x1)
+    }
+}
+
+impl KeyGroup {
+    /// Bounding rectangle of the group's keys (areas and clusters alike), in
+    /// the same pixel space as [`Key::rect`]. Gaps between clusters inside an
+    /// area are included, so e.g. [`KeyGroup::FKey`] spans Esc to F12.
+    pub const fn rect(self) -> Rect {
+        let clusters = self.layout();
+        let mut r = clusters[0][0].rect();
+        let mut c = 0;
+        while c < clusters.len() {
+            let mut k = 0;
+            while k < clusters[c].len() {
+                r = r.union(clusters[c][k].rect());
+                k += 1;
+            }
+            c += 1;
+        }
+        r
+    }
+
+    /// The area whose rectangle contains `(x, y)` in image pixels, if any.
+    /// Use [`Key::at`] for the exact key, or check [`KeyGroup::CLUSTERS`].
+    pub fn at(x: u16, y: u16) -> Option<KeyGroup> {
+        KeyGroup::AREAS.into_iter().find(|g| g.rect().contains(x, y))
     }
 }
 
@@ -685,6 +719,38 @@ mod tests {
                 assert!(gap > 0, "row {r}: clusters touch");
             }
         }
+    }
+
+    #[test]
+    fn group_rects_bound_their_keys() {
+        let all = KeyGroup::AREAS.into_iter().chain(KeyGroup::CLUSTERS);
+        for g in all {
+            let r = g.rect();
+            for k in g.keys() {
+                let kr = k.rect();
+                assert!(r.x1 <= kr.x1 && r.y1 <= kr.y1 && kr.x2 <= r.x2 && kr.y2 <= r.y2, "{g:?} misses {k:?}");
+            }
+            // Tight: each edge is touched by some key.
+            assert!(g.keys().any(|k| k.rect().x1 == r.x1), "{g:?} left");
+            assert!(g.keys().any(|k| k.rect().x2 == r.x2), "{g:?} right");
+            assert!(g.keys().any(|k| k.rect().y1 == r.y1), "{g:?} top");
+            assert!(g.keys().any(|k| k.rect().y2 == r.y2), "{g:?} bottom");
+        }
+        // A single-key cluster is exactly its key.
+        assert_eq!(KeyGroup::Esc.rect(), Key::Esc.rect());
+        assert_eq!(KeyGroup::ArrowUp.rect(), Key::Up.rect());
+        // Clusters in the same row don't overlap.
+        for row in LAYOUT {
+            for pair in row.windows(2) {
+                let a = KeyGroup::CLUSTERS.into_iter().find(|c| c.layout()[0] == pair[0]).unwrap().rect();
+                let b = KeyGroup::CLUSTERS.into_iter().find(|c| c.layout()[0] == pair[1]).unwrap().rect();
+                assert!(a.x2 < b.x1);
+            }
+        }
+        assert_eq!(KeyGroup::FKey.rect(), Key::Esc.rect().union(Key::F12.rect()));
+        assert_eq!(KeyGroup::at(30, 40), Some(KeyGroup::FKey));
+        let (cx, cy) = Key::Space.rect().center();
+        assert_eq!(KeyGroup::at(cx as u16, cy as u16), Some(KeyGroup::Main));
     }
 
     #[test]
