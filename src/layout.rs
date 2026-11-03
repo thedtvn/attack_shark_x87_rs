@@ -5,9 +5,9 @@
 //! - [`LAYOUT`] is the physical layout as keyboard → row → group, where a group
 //!   is a cluster of adjacent keys separated from the next by a gap.
 //! - [`KeyGroup`] names the key areas (function row, main block, navigation,
-//!   arrows), each as a list of its clusters. Each cluster is also a public
-//!   const, e.g. [`KeyGroup::F1_F4`], [`KeyGroup::NUMBER_ROW`], and
-//!   [`KeyGroup::CLUSTERS`] lists all of them.
+//!   arrows), each as a list of its clusters. Each physical cluster is also a
+//!   variant, e.g. [`KeyGroup::F1F4`], [`KeyGroup::NumberRow`];
+//!   [`KeyGroup::AREAS`] and [`KeyGroup::CLUSTERS`] list them.
 //!
 //! The key table is defined once with [`define_keys!`](crate::rs_macro), so
 //! names and indices are never repeated by hand.
@@ -28,7 +28,8 @@
 //! assert_eq!(KeyGroup::Main.layout()[0][0], Key::Grave);   // first row starts with `
 //! assert_eq!(Key::Up.group(), KeyGroup::Arrows);
 //! assert_eq!(Key::Up.row(), 4);
-//! assert_eq!(KeyGroup::F1_F4, &[Key::F1, Key::F2, Key::F3, Key::F4]);
+//! assert_eq!(KeyGroup::F1F4.keys().collect::<Vec<_>>(), [Key::F1, Key::F2, Key::F3, Key::F4]);
+//! assert_eq!(Key::F2.cluster(), KeyGroup::F1F4);
 //! let all_f_keys: Vec<Key> = KeyGroup::FKey.keys().collect();
 //! assert_eq!(all_f_keys.len(), 13);
 //! ```
@@ -133,122 +134,184 @@ define_keys! {
     }
 }
 
-/// Physical clusters: runs of adjacent keys separated by a gap. Each is
-/// listed once here and reused by [`LAYOUT`] and [`KeyGroup::layout`].
-impl KeyGroup {
-    /// `[Esc]`.
-    pub const ESC: &'static [Key] = &[Key::Esc];
-    /// `[F1 F2 F3 F4]`.
-    pub const F1_F4: &'static [Key] = &[Key::F1, Key::F2, Key::F3, Key::F4];
-    /// `[F5 F6 F7 F8]`.
-    pub const F5_F8: &'static [Key] = &[Key::F5, Key::F6, Key::F7, Key::F8];
-    /// `[F9 F10 F11 F12]`.
-    pub const F9_F12: &'static [Key] = &[Key::F9, Key::F10, Key::F11, Key::F12];
-    /// `[PrtSc ScrLock Pause]`.
-    pub const PRINT_SCROLL_PAUSE: &'static [Key] = &[Key::PrtSc, Key::ScrLock, Key::Pause];
-    /// `` [` 1 2 3 4 5 6 7 8 9 0 - = Backspace] ``.
-    pub const NUMBER_ROW: &'static [Key] = &[Key::Grave, Key::Digit1, Key::Digit2, Key::Digit3, Key::Digit4, Key::Digit5, Key::Digit6, Key::Digit7, Key::Digit8, Key::Digit9, Key::Digit0, Key::Minus, Key::Equal, Key::Backspace];
-    /// `[Insert Home PgUp]`.
-    pub const INSERT_HOME_PGUP: &'static [Key] = &[Key::Insert, Key::Home, Key::PgUp];
-    /// `[Tab Q W E R T Y U I O P [ ] \]`.
-    pub const TOP_ROW: &'static [Key] = &[Key::Tab, Key::Q, Key::W, Key::E, Key::R, Key::T, Key::Y, Key::U, Key::I, Key::O, Key::P, Key::BracketLeft, Key::BracketRight, Key::Backslash];
-    /// `[Delete End PgDn]`.
-    pub const DELETE_END_PGDN: &'static [Key] = &[Key::Delete, Key::End, Key::PgDn];
-    /// `[CapsLock A S D F G H J K L ; ' Enter]`.
-    pub const HOME_ROW: &'static [Key] = &[Key::CapsLock, Key::A, Key::S, Key::D, Key::F, Key::G, Key::H, Key::J, Key::K, Key::L, Key::Semicolon, Key::Quote, Key::Enter];
-    /// `[LShift Z X C V B N M , . / RShift]`.
-    pub const SHIFT_ROW: &'static [Key] = &[Key::LShift, Key::Z, Key::X, Key::C, Key::V, Key::B, Key::N, Key::M, Key::Comma, Key::Period, Key::Slash, Key::RShift];
-    /// `[Up]`.
-    pub const ARROW_UP: &'static [Key] = &[Key::Up];
-    /// `[LCtrl LWin LAlt Space RAlt Fn App RCtrl]`.
-    pub const BOTTOM_ROW: &'static [Key] = &[Key::LCtrl, Key::LWin, Key::LAlt, Key::Space, Key::RAlt, Key::Fn, Key::App, Key::RCtrl];
-    /// `[Left Down Right]`.
-    pub const ARROW_LEFT_DOWN_RIGHT: &'static [Key] = &[Key::Left, Key::Down, Key::Right];
-
-    /// Every cluster, in keyboard order (row by row, left to right).
-    pub const CLUSTERS: &'static [&'static [Key]] = &[
-        KeyGroup::ESC,
-        KeyGroup::F1_F4,
-        KeyGroup::F5_F8,
-        KeyGroup::F9_F12,
-        KeyGroup::PRINT_SCROLL_PAUSE,
-        KeyGroup::NUMBER_ROW,
-        KeyGroup::INSERT_HOME_PGUP,
-        KeyGroup::TOP_ROW,
-        KeyGroup::DELETE_END_PGDN,
-        KeyGroup::HOME_ROW,
-        KeyGroup::SHIFT_ROW,
-        KeyGroup::ARROW_UP,
-        KeyGroup::BOTTOM_ROW,
-        KeyGroup::ARROW_LEFT_DOWN_RIGHT,
-    ];
-}
-
-/// The physical layout: keyboard → row → group (cluster of adjacent keys).
+/// A named set of keys: one of the four key areas, or one physical cluster.
 ///
-/// Rows go top to bottom; groups and keys go left to right. Every key appears
-/// exactly once, and reading it row by row gives [`Key::ALL`].
-pub const LAYOUT: &[&[&[Key]]] = &[
-    &[KeyGroup::ESC, KeyGroup::F1_F4, KeyGroup::F5_F8, KeyGroup::F9_F12, KeyGroup::PRINT_SCROLL_PAUSE],
-    &[KeyGroup::NUMBER_ROW, KeyGroup::INSERT_HOME_PGUP],
-    &[KeyGroup::TOP_ROW, KeyGroup::DELETE_END_PGDN],
-    &[KeyGroup::HOME_ROW],
-    &[KeyGroup::SHIFT_ROW, KeyGroup::ARROW_UP],
-    &[KeyGroup::BOTTOM_ROW, KeyGroup::ARROW_LEFT_DOWN_RIGHT],
-];
-
-/// A key area. [`KeyGroup::layout`] returns its clusters of adjacent keys.
+/// - **Areas** ([`KeyGroup::AREAS`]): `FKey`, `Main`, `Navigation`, `Arrows`.
+///   Together they cover every key once. `layout()` returns the area's
+///   clusters, e.g. `FKey` = `[[Esc], [F1..F4], [F5..F8], [F9..F12]]`.
+/// - **Clusters** ([`KeyGroup::CLUSTERS`]): runs of adjacent keys separated
+///   from the next by a gap, e.g. `F1F4` = `[F1, F2, F3, F4]`. `layout()`
+///   returns the single cluster, `[[F1, F2, F3, F4]]`.
+///
+/// [`LAYOUT`] arranges the clusters physically: keyboard → row → cluster.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[non_exhaustive]
 pub enum KeyGroup {
-    /// Esc and the function keys, split into the physical clusters `[Esc] [F1–F4] [F5–F8] [F9–F12]`.
+    // ---- areas ----
+    /// Area: Esc and the function keys, `[Esc] [F1–F4] [F5–F8] [F9–F12]`.
     FKey,
-    /// The main alphanumeric block, one entry per row, from the number row to the bottom row.
+    /// Area: the main block, one cluster per row from the number row down.
     Main,
-    /// `PrtSc ScrLock Pause`, `Insert Home PgUp` and `Delete End PgDn`, one entry per row.
+    /// Area: `PrtSc ScrLock Pause`, `Insert Home PgUp`, `Delete End PgDn`.
     Navigation,
-    /// The arrow keys: `[Up]` then `[Left Down Right]`.
+    /// Area: the arrow keys, `[Up]` then `[Left Down Right]`.
     Arrows,
+
+    // ---- physical clusters ----
+    /// Cluster `[Esc]`.
+    Esc,
+    /// Cluster `[F1 F2 F3 F4]`.
+    F1F4,
+    /// Cluster `[F5 F6 F7 F8]`.
+    F5F8,
+    /// Cluster `[F9 F10 F11 F12]`.
+    F9F12,
+    /// Cluster `[PrtSc ScrLock Pause]`.
+    PrintScrollPause,
+    /// Cluster `` [` 1 2 3 4 5 6 7 8 9 0 - = Backspace] ``.
+    NumberRow,
+    /// Cluster `[Insert Home PgUp]`.
+    InsertHomePgUp,
+    /// Cluster `[Tab Q W E R T Y U I O P [ ] \]`.
+    TopRow,
+    /// Cluster `[Delete End PgDn]`.
+    DeleteEndPgDn,
+    /// Cluster `[CapsLock A S D F G H J K L ; ' Enter]`.
+    HomeRow,
+    /// Cluster `[LShift Z X C V B N M , . / RShift]`.
+    ShiftRow,
+    /// Cluster `[Up]`.
+    ArrowUp,
+    /// Cluster `[LCtrl LWin LAlt Space RAlt Fn App RCtrl]`.
+    BottomRow,
+    /// Cluster `[Left Down Right]`.
+    ArrowLeftDownRight,
 }
 
-const GROUP_FKEY: &[&[Key]] = &[KeyGroup::ESC, KeyGroup::F1_F4, KeyGroup::F5_F8, KeyGroup::F9_F12];
-const GROUP_MAIN: &[&[Key]] = &[KeyGroup::NUMBER_ROW, KeyGroup::TOP_ROW, KeyGroup::HOME_ROW, KeyGroup::SHIFT_ROW, KeyGroup::BOTTOM_ROW];
-const GROUP_NAVIGATION: &[&[Key]] = &[KeyGroup::PRINT_SCROLL_PAUSE, KeyGroup::INSERT_HOME_PGUP, KeyGroup::DELETE_END_PGDN];
-const GROUP_ARROWS: &[&[Key]] = &[KeyGroup::ARROW_UP, KeyGroup::ARROW_LEFT_DOWN_RIGHT];
+// Each cluster's keys, written once. Every area, LAYOUT and the cluster
+// variants are built from these.
+const ESC: &[Key] = &[Key::Esc];
+const F1_F4: &[Key] = &[Key::F1, Key::F2, Key::F3, Key::F4];
+const F5_F8: &[Key] = &[Key::F5, Key::F6, Key::F7, Key::F8];
+const F9_F12: &[Key] = &[Key::F9, Key::F10, Key::F11, Key::F12];
+const PRINT_SCROLL_PAUSE: &[Key] = &[Key::PrtSc, Key::ScrLock, Key::Pause];
+const NUMBER_ROW: &[Key] = &[
+    Key::Grave, Key::Digit1, Key::Digit2, Key::Digit3, Key::Digit4, Key::Digit5, Key::Digit6,
+    Key::Digit7, Key::Digit8, Key::Digit9, Key::Digit0, Key::Minus, Key::Equal, Key::Backspace,
+];
+const INSERT_HOME_PGUP: &[Key] = &[Key::Insert, Key::Home, Key::PgUp];
+const TOP_ROW: &[Key] = &[
+    Key::Tab, Key::Q, Key::W, Key::E, Key::R, Key::T, Key::Y, Key::U, Key::I, Key::O, Key::P,
+    Key::BracketLeft, Key::BracketRight, Key::Backslash,
+];
+const DELETE_END_PGDN: &[Key] = &[Key::Delete, Key::End, Key::PgDn];
+const HOME_ROW: &[Key] = &[
+    Key::CapsLock, Key::A, Key::S, Key::D, Key::F, Key::G, Key::H, Key::J, Key::K, Key::L,
+    Key::Semicolon, Key::Quote, Key::Enter,
+];
+const SHIFT_ROW: &[Key] = &[
+    Key::LShift, Key::Z, Key::X, Key::C, Key::V, Key::B, Key::N, Key::M, Key::Comma, Key::Period,
+    Key::Slash, Key::RShift,
+];
+const ARROW_UP: &[Key] = &[Key::Up];
+const BOTTOM_ROW: &[Key] = &[
+    Key::LCtrl, Key::LWin, Key::LAlt, Key::Space, Key::RAlt, Key::Fn, Key::App, Key::RCtrl,
+];
+const ARROW_LEFT_DOWN_RIGHT: &[Key] = &[Key::Left, Key::Down, Key::Right];
+
+/// The physical layout: keyboard → row → cluster of adjacent keys.
+///
+/// Rows go top to bottom; clusters and keys go left to right. Every key
+/// appears exactly once, and reading it row by row gives [`Key::ALL`].
+pub const LAYOUT: &[&[&[Key]]] = &[
+    &[ESC, F1_F4, F5_F8, F9_F12, PRINT_SCROLL_PAUSE],
+    &[NUMBER_ROW, INSERT_HOME_PGUP],
+    &[TOP_ROW, DELETE_END_PGDN],
+    &[HOME_ROW],
+    &[SHIFT_ROW, ARROW_UP],
+    &[BOTTOM_ROW, ARROW_LEFT_DOWN_RIGHT],
+];
 
 impl KeyGroup {
-    /// Every area, top-left to bottom-right.
-    pub const ALL: [KeyGroup; 4] = [KeyGroup::FKey, KeyGroup::Main, KeyGroup::Navigation, KeyGroup::Arrows];
+    /// The four areas, top-left to bottom-right. They cover every key once.
+    pub const AREAS: [KeyGroup; 4] = [KeyGroup::FKey, KeyGroup::Main, KeyGroup::Navigation, KeyGroup::Arrows];
 
-    /// The area's clusters of adjacent keys. For [`KeyGroup::Main`] and
-    /// [`KeyGroup::Navigation`] each cluster is one row.
+    /// The 14 physical clusters, in keyboard order (row by row, left to right).
+    pub const CLUSTERS: [KeyGroup; 14] = [
+        KeyGroup::Esc,
+        KeyGroup::F1F4,
+        KeyGroup::F5F8,
+        KeyGroup::F9F12,
+        KeyGroup::PrintScrollPause,
+        KeyGroup::NumberRow,
+        KeyGroup::InsertHomePgUp,
+        KeyGroup::TopRow,
+        KeyGroup::DeleteEndPgDn,
+        KeyGroup::HomeRow,
+        KeyGroup::ShiftRow,
+        KeyGroup::ArrowUp,
+        KeyGroup::BottomRow,
+        KeyGroup::ArrowLeftDownRight,
+    ];
+
+    /// Whether this is one of the four areas (as opposed to a single cluster).
+    pub const fn is_area(self) -> bool {
+        matches!(self, KeyGroup::FKey | KeyGroup::Main | KeyGroup::Navigation | KeyGroup::Arrows)
+    }
+
+    /// The group's clusters of adjacent keys.
+    ///
+    /// For an area, its clusters (for [`KeyGroup::Main`] and
+    /// [`KeyGroup::Navigation`], one per row). For a cluster, just itself.
     pub const fn layout(self) -> &'static [&'static [Key]] {
         match self {
-            KeyGroup::FKey => GROUP_FKEY,
-            KeyGroup::Main => GROUP_MAIN,
-            KeyGroup::Navigation => GROUP_NAVIGATION,
-            KeyGroup::Arrows => GROUP_ARROWS,
+            KeyGroup::FKey => &[ESC, F1_F4, F5_F8, F9_F12],
+            KeyGroup::Main => &[NUMBER_ROW, TOP_ROW, HOME_ROW, SHIFT_ROW, BOTTOM_ROW],
+            KeyGroup::Navigation => &[PRINT_SCROLL_PAUSE, INSERT_HOME_PGUP, DELETE_END_PGDN],
+            KeyGroup::Arrows => &[ARROW_UP, ARROW_LEFT_DOWN_RIGHT],
+            KeyGroup::Esc => &[ESC],
+            KeyGroup::F1F4 => &[F1_F4],
+            KeyGroup::F5F8 => &[F5_F8],
+            KeyGroup::F9F12 => &[F9_F12],
+            KeyGroup::PrintScrollPause => &[PRINT_SCROLL_PAUSE],
+            KeyGroup::NumberRow => &[NUMBER_ROW],
+            KeyGroup::InsertHomePgUp => &[INSERT_HOME_PGUP],
+            KeyGroup::TopRow => &[TOP_ROW],
+            KeyGroup::DeleteEndPgDn => &[DELETE_END_PGDN],
+            KeyGroup::HomeRow => &[HOME_ROW],
+            KeyGroup::ShiftRow => &[SHIFT_ROW],
+            KeyGroup::ArrowUp => &[ARROW_UP],
+            KeyGroup::BottomRow => &[BOTTOM_ROW],
+            KeyGroup::ArrowLeftDownRight => &[ARROW_LEFT_DOWN_RIGHT],
         }
     }
 
-    /// Every key in the area, left to right and top to bottom.
+    /// Every key in the group, left to right and top to bottom.
     pub fn keys(self) -> impl Iterator<Item = Key> {
         self.layout().iter().flat_map(|cluster| cluster.iter().copied())
     }
 
-    /// Whether `key` is in this area.
+    /// Whether `key` is in this group.
     pub fn contains(self, key: Key) -> bool {
         self.keys().any(|k| k == key)
     }
 }
 
 impl Key {
-    /// The area this key belongs to.
+    /// The area this key belongs to (`FKey`, `Main`, `Navigation` or `Arrows`).
     pub fn group(self) -> KeyGroup {
-        KeyGroup::ALL
+        KeyGroup::AREAS
             .into_iter()
             .find(|g| g.contains(self))
-            .expect("every key is in a KeyGroup")
+            .expect("every key is in an area")
+    }
+
+    /// The physical cluster this key belongs to, e.g. `Key::F2` → `KeyGroup::F1F4`.
+    pub fn cluster(self) -> KeyGroup {
+        KeyGroup::CLUSTERS
+            .into_iter()
+            .find(|g| g.contains(self))
+            .expect("every key is in a cluster")
     }
 
     /// Physical row, 0 (function row) to 5 (bottom row).
@@ -349,25 +412,55 @@ mod tests {
         // Every group cluster is a cluster of LAYOUT and every LAYOUT cluster
         // is in exactly one group.
         let layout_clusters: Vec<&[Key]> = LAYOUT.iter().flat_map(|r| r.iter().copied()).collect();
-        let group_clusters: Vec<&[Key]> = KeyGroup::ALL.iter().flat_map(|g| g.layout().iter().copied()).collect();
+        let group_clusters: Vec<&[Key]> = KeyGroup::AREAS.iter().flat_map(|g| g.layout().iter().copied()).collect();
         assert_eq!(layout_clusters.len(), group_clusters.len());
         for c in &layout_clusters {
             assert_eq!(group_clusters.iter().filter(|g| *g == c).count(), 1);
         }
-        let total: usize = KeyGroup::ALL.iter().map(|g| g.keys().count()).sum();
+        let total: usize = KeyGroup::AREAS.iter().map(|g| g.keys().count()).sum();
         assert_eq!(total, Key::COUNT);
     }
 
     #[test]
-    fn clusters_are_public_and_cover_the_layout_once() {
+    fn cluster_variants_match_the_layout_once() {
+        // CLUSTERS, in order, are exactly the clusters of LAYOUT.
         let layout: Vec<&[Key]> = LAYOUT.iter().flat_map(|r| r.iter().copied()).collect();
-        assert_eq!(layout, KeyGroup::CLUSTERS.to_vec());
-        assert_eq!(KeyGroup::CLUSTERS.len(), 14);
-        assert_eq!(KeyGroup::F1_F4, &[Key::F1, Key::F2, Key::F3, Key::F4]);
-        assert_eq!(KeyGroup::NUMBER_ROW.last(), Some(&Key::Backspace));
-        assert_eq!(KeyGroup::HOME_ROW[0], Key::CapsLock);
-        assert_eq!(KeyGroup::FKey.layout(), &[KeyGroup::ESC, KeyGroup::F1_F4, KeyGroup::F5_F8, KeyGroup::F9_F12]);
-        assert_eq!(KeyGroup::Arrows.layout(), &[KeyGroup::ARROW_UP, KeyGroup::ARROW_LEFT_DOWN_RIGHT]);
+        let clusters: Vec<&[Key]> = KeyGroup::CLUSTERS.iter().map(|c| c.layout()[0]).collect();
+        assert_eq!(layout, clusters);
+        for c in KeyGroup::CLUSTERS {
+            assert!(!c.is_area());
+            assert_eq!(c.layout().len(), 1, "a cluster is one run of keys");
+        }
+        for a in KeyGroup::AREAS {
+            assert!(a.is_area());
+        }
+        // Each cluster belongs to exactly one area.
+        for c in KeyGroup::CLUSTERS {
+            let owners = KeyGroup::AREAS.iter().filter(|a| a.layout().contains(&c.layout()[0])).count();
+            assert_eq!(owners, 1, "{c:?}");
+        }
+        // Every key's cluster contains it, and clusters partition the keyboard.
+        for k in Key::ALL {
+            assert!(k.cluster().contains(k));
+        }
+        let total: usize = KeyGroup::CLUSTERS.iter().map(|c| c.keys().count()).sum();
+        assert_eq!(total, Key::COUNT);
+    }
+
+    #[test]
+    fn named_clusters() {
+        let keys = |g: KeyGroup| g.keys().collect::<Vec<_>>();
+        assert_eq!(keys(KeyGroup::F1F4), [Key::F1, Key::F2, Key::F3, Key::F4]);
+        assert_eq!(keys(KeyGroup::NumberRow).last(), Some(&Key::Backspace));
+        assert_eq!(keys(KeyGroup::HomeRow)[0], Key::CapsLock);
+        assert_eq!(keys(KeyGroup::ArrowLeftDownRight), [Key::Left, Key::Down, Key::Right]);
+        assert_eq!(KeyGroup::FKey.layout(), [KeyGroup::Esc, KeyGroup::F1F4, KeyGroup::F5F8, KeyGroup::F9F12].map(|c| c.layout()[0]));
+        assert_eq!(KeyGroup::Arrows.layout(), [KeyGroup::ArrowUp, KeyGroup::ArrowLeftDownRight].map(|c| c.layout()[0]));
+        assert_eq!(Key::F2.cluster(), KeyGroup::F1F4);
+        assert_eq!(Key::Space.cluster(), KeyGroup::BottomRow);
+        assert_eq!(Key::Up.cluster(), KeyGroup::ArrowUp);
+        assert_eq!(Key::Esc.cluster(), KeyGroup::Esc);
+        assert_eq!(Key::Esc.group(), KeyGroup::FKey);
     }
 
     #[test]

@@ -139,13 +139,16 @@ assert_eq!(Key::Space.row(), 5);
 ```
 
 - `LAYOUT` has 6 rows. Reading it row by row gives `Key::ALL`.
-- `KeyGroup` is `FKey`, `Main`, `Navigation` or `Arrows`; together they cover
-  every key exactly once.
-- Each physical cluster is also a const on `KeyGroup`, used by both `LAYOUT`
-  and the areas: `ESC`, `F1_F4`, `F5_F8`, `F9_F12`, `PRINT_SCROLL_PAUSE`,
-  `NUMBER_ROW`, `INSERT_HOME_PGUP`, `TOP_ROW`, `DELETE_END_PGDN`, `HOME_ROW`,
-  `SHIFT_ROW`, `ARROW_UP`, `BOTTOM_ROW`, `ARROW_LEFT_DOWN_RIGHT`.
-  `KeyGroup::CLUSTERS` lists all 14 in keyboard order.
+- The `KeyGroup` areas are `FKey`, `Main`, `Navigation` and `Arrows`; together
+  they cover every key exactly once.
+- Each physical cluster is also a `KeyGroup` variant: `Esc`, `F1F4`, `F5F8`,
+  `F9F12`, `PrintScrollPause`, `NumberRow`, `InsertHomePgUp`, `TopRow`,
+  `DeleteEndPgDn`, `HomeRow`, `ShiftRow`, `ArrowUp`, `BottomRow`,
+  `ArrowLeftDownRight`. They have the same methods as the areas
+  (`layout()`, `keys()`, `contains()`); `is_area()` tells them apart.
+- `KeyGroup::AREAS` lists the 4 areas and `KeyGroup::CLUSTERS` the 14
+  clusters in keyboard order. `Key::group()` gives a key's area and
+  `Key::cluster()` its cluster (`Key::F2.cluster() == KeyGroup::F1F4`).
 - The key table is written once with an internal `define_keys!` macro
   (`src/rs_macro.rs`) that generates `name()`, `index()`, `from_name()`,
   `from_index()`, `ALL` and `COUNT`. A duplicated index is a compile error.
