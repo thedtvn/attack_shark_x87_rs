@@ -175,8 +175,8 @@ kb.remap_key(0, "F12", KeyAction::Macro { slot: 0, repeat: MacroRepeat::Times(1)
   `W3632_WriteMacroData`): it writes the bank once in eight 512-byte units,
   reporting a non-decreasing percentage. Nothing is read first and nothing is
   read back: every packet is acknowledged and retried by the transport.
-  `replace_macro_bank` is the same without progress and refuses an empty bank;
-  `clear_macro_bank` writes an empty one.
+  The macro API is just three calls: `macro_bank()` (get),
+  `save_macro_bank(&bank, progress)` (save) and `clear_macro_bank()` (clear).
 - Slot numbers are shared across all four layers and key bindings are not
   checked. A key bound to slot `n` plays whatever is now in slot `n`; a key
   bound past the end of the bank does nothing.

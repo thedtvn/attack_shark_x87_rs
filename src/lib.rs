@@ -505,16 +505,7 @@ impl Keyboard {
         Ok(())
     }
 
-    /// `save_macro_bank` without progress. Refuses an empty bank so a caller
-    /// can't clear it by accident; use `clear_macro_bank` for that.
-    pub fn replace_macro_bank(&self, bank: &macros::MacroBank) -> Result<()> {
-        if bank.macros.is_empty() {
-            return Err(Error::InvalidArgument("refusing empty macro bank; use clear_macro_bank"));
-        }
-        self.save_macro_bank(bank, None)
-    }
-
-    /// Write an empty bank.
+    /// Write an empty bank (same as `save_macro_bank` with no macros).
     pub fn clear_macro_bank(&self) -> Result<()> {
         self.save_macro_bank(&macros::MacroBank::default(), None)
     }

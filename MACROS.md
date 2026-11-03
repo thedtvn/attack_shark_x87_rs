@@ -173,9 +173,10 @@ Transport packets have their normal framing/checksums.
   shorter than USB allocation. Readers require every packet and meaningful
   bytes, pad only unused tails, and retry incomplete/conflicting streams.
 
-`write_block(Block::Macro, ...)` now implements the wireless 512-byte page
-wrapper and requires a complete 4096-byte bank. `replace_macro_bank` checks
-references first. Bypassing this with oversized raw writes is not equivalent.
+Library macro API: `macro_bank()` reads the bank, `save_macro_bank()` writes
+it once like the vendor app (no layer check, no read-back), and
+`clear_macro_bank()` writes an empty bank. Writes use the 512-byte page
+wrapper and require a complete 4096-byte bank.
 
 ## Safe implementation/verification plan
 
