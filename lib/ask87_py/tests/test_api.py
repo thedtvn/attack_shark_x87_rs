@@ -26,7 +26,7 @@ def test_enums_match_rust() -> None:
 def test_layout() -> None:
     assert [k for row in LAYOUT for g in row for k in g.keys] == list(Key)
     assert all(g.is_area for g in KeyGroup.areas())
-    assert Key.CapsLock.group is KeyGroup.Main
+    assert Key.CAPS_LOCK.group is KeyGroup.MAIN
     assert Key.S.left is Key.A
     assert Key.at(Key.F6.rect.x1 + 1, Key.F6.rect.y1 + 1) is Key.F6
 
@@ -40,7 +40,7 @@ def test_actions_round_trip() -> None:
         KeyAction.fn(),
         KeyAction.macro(3, "until_released"),
         KeyAction.macro(0, 5),
-        KeyAction.control(ControllerAction.Bluetooth1),
+        KeyAction.control(ControllerAction.BLUETOOTH_1),
     ]:
         assert decode_action(encode_action(a)) == a
 
@@ -90,3 +90,21 @@ def test_keyboard_watch_methods() -> None:
 
     assert callable(Keyboard.watch)
     assert not inspect.iscoroutinefunction(AsyncKeyboard.watch)
+
+
+def test_upper_snake_members_and_keyset() -> None:
+    from ask87 import Key, KeyGroup, KeySet
+
+    assert Key.CAPS_LOCK.value == "CapsLock"
+    assert KeyGroup.F1_F4.value == "F1F4"
+    row: KeySet = KeyGroup.NUMBER_ROW + KeyGroup.INSERT_HOME_PGUP
+    assert row[-3:] == (Key.INSERT, Key.HOME, Key.PGUP)
+    assert Key.W + Key.A == (Key.W, Key.A)
+    assert Key.ESC + KeyGroup.F1_F4 == (Key.ESC, Key.F1, Key.F2, Key.F3, Key.F4)
+    assert (KeyGroup.F1_F4 - Key.F2) == (Key.F1, Key.F3, Key.F4)
+    assert KeyGroup.ESC + Key.ESC == (Key.ESC,)
+    rows = [g for row in __import__("ask87").LAYOUT for g in row]
+    total = KeySet()
+    for g in rows:
+        total = total + g
+    assert list(total) == list(Key)

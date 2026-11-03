@@ -56,12 +56,31 @@ uv add "git+https://github.com/thedtvn/attack_shark_x87_rs"
 from ask87 import Keyboard, Effect, Key, KeyAction, ControllerAction, Macro, MacroEvent
 
 with Keyboard.open() as kb:  # "auto" | "usb" | "wireless"
-    kb.set_effect(Effect.FixedOn, brightness=4)
-    kb.remap_key(0, Key.CapsLock, KeyAction.key(0x29))  # Caps Lock -> Esc
-    kb.remap_key(1, Key.F6, KeyAction.control(ControllerAction.Bluetooth1))
+    kb.set_effect(Effect.FIXED_ON, brightness=4)
+    kb.remap_key(0, Key.CAPS_LOCK, KeyAction.key(0x29))  # Caps Lock -> Esc
+    kb.remap_key(1, Key.F6, KeyAction.control(ControllerAction.BLUETOOTH_1))
     kb.save_macros([Macro("hi", [MacroEvent.key_down(0x0B, 20), MacroEvent.key_up(0x0B)])],
                    on_progress=lambda p: print(f"{p}%"))
-    print(Key.CapsLock.label, Key.CapsLock.rect, Key.CapsLock.group)
+    print(Key.CAPS_LOCK.label, Key.CAPS_LOCK.rect, Key.CAPS_LOCK.group)
+```
+
+Enum members are UPPER_SNAKE (`Key.CAPS_LOCK`, `KeyGroup.F1_F4`,
+`Effect.FIXED_ON`), and each value is the Rust variant name. Keys and groups
+combine with `+` into a `KeySet`, an ordered tuple of keys; `-` removes keys:
+
+```python
+from ask87 import Key, KeyGroup, LAYOUT
+
+main_kb = [
+    KeyGroup.ESC + KeyGroup.F1_F4 + KeyGroup.F5_F8 + KeyGroup.F9_F12 + KeyGroup.PRINT_SCROLL_PAUSE,
+    KeyGroup.NUMBER_ROW + KeyGroup.INSERT_HOME_PGUP,
+    KeyGroup.TOP_ROW + KeyGroup.DELETE_END_PGDN,
+    KeyGroup.HOME_ROW,
+    KeyGroup.SHIFT_ROW + KeyGroup.ARROW_UP,
+    KeyGroup.BOTTOM_ROW + KeyGroup.ARROW_LEFT_DOWN_RIGHT,
+]
+wasd = Key.W + Key.A + Key.S + Key.D
+print((KeyGroup.MAIN - Key.SPACE).rect, LAYOUT[0])  # LAYOUT: rows of clusters
 ```
 
 `AsyncKeyboard` has the same methods for asyncio. Each call runs in a worker
@@ -71,7 +90,7 @@ thread with the GIL released, and `on_progress` runs on the event loop:
 from ask87 import AsyncKeyboard, Effect
 
 kb = await AsyncKeyboard.open()
-await kb.set_effect(Effect.FixedOn)
+await kb.set_effect(Effect.FIXED_ON)
 macros = await kb.get_macros()
 kb.close()  # plain method; `async with` also works
 ```
@@ -97,14 +116,17 @@ git dependencies and their install scripts must be allowed first: put
 in `package.json`.
 
 ```ts
-import { Keyboard, Effect, Key, Keys, KeyAction, MacroEvent } from 'attack-shark-x87';
+import { Keyboard, Effect, Key, KeyGroup, Keys, KeyAction, MacroEvent, LAYOUT, keys, keysRect } from 'attack-shark-x87';
 
 const kb = await Keyboard.openAsync(); // or Keyboard.open(); 'auto' | 'usb' | 'wireless'
-await kb.setEffect(Effect.FixedOn, { brightness: 4 });
-await kb.remapKey(0, Key.CapsLock, KeyAction.key(0x29));
+await kb.setEffect(Effect.FIXED_ON, { brightness: 4 });
+await kb.remapKey(0, Key.CAPS_LOCK, KeyAction.key(0x29));
 await kb.saveMacros([{ name: 'hi', events: [MacroEvent.keyDown(0x0b, 20), MacroEvent.keyUp(0x0b)] }],
   (p) => console.log(`${p}%`));
-console.log(Keys.label(Key.CapsLock), Keys.rect(Key.CapsLock));
+console.log(Keys.label(Key.CAPS_LOCK), Keys.rect(Key.CAPS_LOCK));
+// Same UPPER_SNAKE members; combine keys / groups with keys(...):
+const row = keys(KeyGroup.NUMBER_ROW, KeyGroup.INSERT_HOME_PGUP);
+console.log(keysRect(row), LAYOUT[0]);
 kb.close();
 ```
 

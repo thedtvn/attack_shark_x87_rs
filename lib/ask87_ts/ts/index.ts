@@ -5,8 +5,8 @@
  * import { Keyboard, Effect, Key, KeyAction } from 'attack-shark-x87';
  *
  * const kb = Keyboard.open();
- * await kb.setEffect(Effect.FixedOn, { brightness: 4 });
- * await kb.remapKey(0, Key.CapsLock, KeyAction.key(0x29)); // Esc
+ * await kb.setEffect(Effect.FIXED_ON, { brightness: 4 });
+ * await kb.remapKey(0, Key.CAPS_LOCK, KeyAction.key(0x29)); // Esc
  * ```
  */
 import { EventEmitter } from 'node:events';
@@ -150,6 +150,39 @@ export const KeyGroups = {
   /** The area under a point of the vendor keyboard image. */
   at: (x: number, y: number): KeyGroup | null => (native.groupAt(x, y) ?? null) as KeyGroup | null,
 } as const;
+
+const isKey = (x: unknown): x is Key => typeof x === 'string' && keyInfo.has(x as Key);
+
+/**
+ * Combine keys and groups into one ordered key list (duplicates dropped);
+ * the TypeScript counterpart of Python's `KeyGroup.A + KeyGroup.B`.
+ *
+ * ```ts
+ * const row = keys(KeyGroup.NUMBER_ROW, KeyGroup.INSERT_HOME_PGUP);
+ * const wasd = keys(Key.W, Key.A, Key.S, Key.D);
+ * ```
+ */
+export function keys(...parts: readonly (Key | KeyGroup | Iterable<Key>)[]): Key[] {
+  const out = new Set<Key>();
+  for (const p of parts) {
+    if (isKey(p)) out.add(p);
+    else if (typeof p === 'string') for (const k of KeyGroups.keys(p as KeyGroup)) out.add(k);
+    else for (const k of p) out.add(k);
+  }
+  return [...out];
+}
+
+/** Bounding box of a set of keys. */
+export function keysRect(ks: Iterable<Key>): Rect {
+  const rs = [...ks].map((k) => Keys.rect(k));
+  if (!rs.length) throw new InvalidArgumentError('no keys');
+  return new Rect(
+    Math.min(...rs.map((r) => r.x1)),
+    Math.min(...rs.map((r) => r.y1)),
+    Math.max(...rs.map((r) => r.x2)),
+    Math.max(...rs.map((r) => r.y2)),
+  );
+}
 
 /** Physical layout: keyboard -> row -> cluster. */
 export const LAYOUT: readonly (readonly KeyGroup[])[] = native

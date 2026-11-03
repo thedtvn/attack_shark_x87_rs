@@ -4,10 +4,11 @@ sync with `_native`."""
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
 from functools import cache
-from typing import Optional
+from typing import Optional, Union
 
 from . import _native
 
@@ -35,10 +36,56 @@ def _groups() -> dict[str, tuple[bool, tuple[tuple[str, ...], ...], Rect]]:
     return {v: (a, tuple(tuple(c) for c in cs), Rect(*r)) for v, a, cs, r in _native.group_table()}
 
 
+class KeySet(tuple["Key", ...]):
+    """An ordered set of keys, built with ``+`` from keys and groups.
+
+        row = KeyGroup.NUMBER_ROW + KeyGroup.INSERT_HOME_PGUP
+        wasd = Key.W + Key.A + Key.S + Key.D
+
+    Duplicates are dropped (first occurrence wins). Usable anywhere a key
+    collection is accepted, e.g. ``{k: color for k in row}``.
+    """
+
+    def __new__(cls, keys: Iterable[Key] = ()) -> KeySet:
+        return super().__new__(cls, dict.fromkeys(keys))
+
+    def __add__(self, other: KeyLike) -> KeySet:  # type: ignore[override]
+        return KeySet((*self, *_keys_of(other)))
+
+    def __radd__(self, other: KeyLike) -> KeySet:
+        return KeySet((*_keys_of(other), *self))
+
+    def __sub__(self, other: KeyLike) -> KeySet:
+        drop = set(_keys_of(other))
+        return KeySet(k for k in self if k not in drop)
+
+    @property
+    def rect(self) -> Rect:
+        """Bounding box of all keys."""
+        rs = [k.rect for k in self]
+        if not rs:
+            raise ValueError("empty KeySet has no rect")
+        return Rect(min(r.x1 for r in rs), min(r.y1 for r in rs), max(r.x2 for r in rs), max(r.y2 for r in rs))
+
+    def __repr__(self) -> str:
+        return f"KeySet({', '.join(k.name for k in self)})"
+
+
+KeyLike = Union["Key", "KeyGroup", KeySet, Iterable["Key"]]
+
+
+def _keys_of(x: KeyLike) -> tuple[Key, ...]:
+    if isinstance(x, Key):
+        return (x,)
+    if isinstance(x, KeyGroup):
+        return x.keys
+    return tuple(x)
+
+
 class Key(Enum):
     """A physical key on the X87."""
 
-    Esc = "Esc"
+    ESC = "Esc"
     F1 = "F1"
     F2 = "F2"
     F3 = "F3"
@@ -51,27 +98,27 @@ class Key(Enum):
     F10 = "F10"
     F11 = "F11"
     F12 = "F12"
-    PrtSc = "PrtSc"
-    ScrLock = "ScrLock"
-    Pause = "Pause"
-    Grave = "Grave"
-    Digit1 = "Digit1"
-    Digit2 = "Digit2"
-    Digit3 = "Digit3"
-    Digit4 = "Digit4"
-    Digit5 = "Digit5"
-    Digit6 = "Digit6"
-    Digit7 = "Digit7"
-    Digit8 = "Digit8"
-    Digit9 = "Digit9"
-    Digit0 = "Digit0"
-    Minus = "Minus"
-    Equal = "Equal"
-    Backspace = "Backspace"
-    Insert = "Insert"
-    Home = "Home"
-    PgUp = "PgUp"
-    Tab = "Tab"
+    PRT_SC = "PrtSc"
+    SCR_LOCK = "ScrLock"
+    PAUSE = "Pause"
+    GRAVE = "Grave"
+    DIGIT_1 = "Digit1"
+    DIGIT_2 = "Digit2"
+    DIGIT_3 = "Digit3"
+    DIGIT_4 = "Digit4"
+    DIGIT_5 = "Digit5"
+    DIGIT_6 = "Digit6"
+    DIGIT_7 = "Digit7"
+    DIGIT_8 = "Digit8"
+    DIGIT_9 = "Digit9"
+    DIGIT_0 = "Digit0"
+    MINUS = "Minus"
+    EQUAL = "Equal"
+    BACKSPACE = "Backspace"
+    INSERT = "Insert"
+    HOME = "Home"
+    PGUP = "PgUp"
+    TAB = "Tab"
     Q = "Q"
     W = "W"
     E = "E"
@@ -82,13 +129,13 @@ class Key(Enum):
     I = "I"
     O = "O"
     P = "P"
-    BracketLeft = "BracketLeft"
-    BracketRight = "BracketRight"
-    Backslash = "Backslash"
-    Delete = "Delete"
-    End = "End"
-    PgDn = "PgDn"
-    CapsLock = "CapsLock"
+    BRACKET_LEFT = "BracketLeft"
+    BRACKET_RIGHT = "BracketRight"
+    BACKSLASH = "Backslash"
+    DELETE = "Delete"
+    END = "End"
+    PGDN = "PgDn"
+    CAPS_LOCK = "CapsLock"
     A = "A"
     S = "S"
     D = "D"
@@ -98,10 +145,10 @@ class Key(Enum):
     J = "J"
     K = "K"
     L = "L"
-    Semicolon = "Semicolon"
-    Quote = "Quote"
-    Enter = "Enter"
-    LShift = "LShift"
+    SEMICOLON = "Semicolon"
+    QUOTE = "Quote"
+    ENTER = "Enter"
+    L_SHIFT = "LShift"
     Z = "Z"
     X = "X"
     C = "C"
@@ -109,22 +156,33 @@ class Key(Enum):
     B = "B"
     N = "N"
     M = "M"
-    Comma = "Comma"
-    Period = "Period"
-    Slash = "Slash"
-    RShift = "RShift"
-    Up = "Up"
-    LCtrl = "LCtrl"
-    LWin = "LWin"
-    LAlt = "LAlt"
-    Space = "Space"
-    RAlt = "RAlt"
-    Fn = "Fn"
-    App = "App"
-    RCtrl = "RCtrl"
-    Left = "Left"
-    Down = "Down"
-    Right = "Right"
+    COMMA = "Comma"
+    PERIOD = "Period"
+    SLASH = "Slash"
+    R_SHIFT = "RShift"
+    UP = "Up"
+    L_CTRL = "LCtrl"
+    L_WIN = "LWin"
+    L_ALT = "LAlt"
+    SPACE = "Space"
+    R_ALT = "RAlt"
+    FN = "Fn"
+    APP = "App"
+    R_CTRL = "RCtrl"
+    LEFT = "Left"
+    DOWN = "Down"
+    RIGHT = "Right"
+
+    def __add__(self, other: KeyLike) -> KeySet:
+        """``Key.W + Key.A`` / ``Key.ESC + KeyGroup.F1_F4`` -> KeySet."""
+        return KeySet((*_keys_of(self), *_keys_of(other)))
+
+    def __radd__(self, other: KeyLike) -> KeySet:
+        return KeySet((*_keys_of(other), *_keys_of(self)))
+
+    def __sub__(self, other: KeyLike) -> KeySet:
+        drop = set(_keys_of(other))
+        return KeySet(k for k in _keys_of(self) if k not in drop)
 
     @property
     def label(self) -> str:
@@ -173,24 +231,35 @@ class Key(Enum):
 class KeyGroup(Enum):
     """A key area (FKey, Main, Navigation, Arrows) or a physical cluster."""
 
-    FKey = "FKey"
-    Main = "Main"
-    Navigation = "Navigation"
-    Arrows = "Arrows"
-    Esc = "Esc"
-    F1F4 = "F1F4"
-    F5F8 = "F5F8"
-    F9F12 = "F9F12"
-    PrintScrollPause = "PrintScrollPause"
-    NumberRow = "NumberRow"
-    InsertHomePgUp = "InsertHomePgUp"
-    TopRow = "TopRow"
-    DeleteEndPgDn = "DeleteEndPgDn"
-    HomeRow = "HomeRow"
-    ShiftRow = "ShiftRow"
-    ArrowUp = "ArrowUp"
-    BottomRow = "BottomRow"
-    ArrowLeftDownRight = "ArrowLeftDownRight"
+    F_KEY = "FKey"
+    MAIN = "Main"
+    NAVIGATION = "Navigation"
+    ARROWS = "Arrows"
+    ESC = "Esc"
+    F1_F4 = "F1F4"
+    F5_F8 = "F5F8"
+    F9_F12 = "F9F12"
+    PRINT_SCROLL_PAUSE = "PrintScrollPause"
+    NUMBER_ROW = "NumberRow"
+    INSERT_HOME_PGUP = "InsertHomePgUp"
+    TOP_ROW = "TopRow"
+    DELETE_END_PGDN = "DeleteEndPgDn"
+    HOME_ROW = "HomeRow"
+    SHIFT_ROW = "ShiftRow"
+    ARROW_UP = "ArrowUp"
+    BOTTOM_ROW = "BottomRow"
+    ARROW_LEFT_DOWN_RIGHT = "ArrowLeftDownRight"
+
+    def __add__(self, other: KeyLike) -> KeySet:
+        """``Key.W + Key.A`` / ``Key.ESC + KeyGroup.F1_F4`` -> KeySet."""
+        return KeySet((*_keys_of(self), *_keys_of(other)))
+
+    def __radd__(self, other: KeyLike) -> KeySet:
+        return KeySet((*_keys_of(other), *_keys_of(self)))
+
+    def __sub__(self, other: KeyLike) -> KeySet:
+        drop = set(_keys_of(other))
+        return KeySet(k for k in _keys_of(self) if k not in drop)
 
     @property
     def is_area(self) -> bool:
@@ -227,25 +296,25 @@ class KeyGroup(Enum):
 class Effect(Enum):
     """Built-in lighting effect."""
 
-    FixedOn = "FixedOn"
-    Respire = "Respire"
-    Rainbow = "Rainbow"
-    FlashAway = "FlashAway"
-    Raindrops = "Raindrops"
-    RainbowWheel = "RainbowWheel"
-    RipplesShining = "RipplesShining"
-    StarsTwinkle = "StarsTwinkle"
-    ShadowDisappear = "ShadowDisappear"
-    RetroSnake = "RetroSnake"
-    NeonStream = "NeonStream"
-    Reaction = "Reaction"
-    SineWave = "SineWave"
-    RetinueScanning = "RetinueScanning"
-    RotatingWindmill = "RotatingWindmill"
-    ColorfulWaterfall = "ColorfulWaterfall"
-    Blossoming = "Blossoming"
-    RotatingStorm = "RotatingStorm"
-    Custom = "Custom"
+    FIXED_ON = "FixedOn"
+    RESPIRE = "Respire"
+    RAINBOW = "Rainbow"
+    FLASH_AWAY = "FlashAway"
+    RAINDROPS = "Raindrops"
+    RAINBOW_WHEEL = "RainbowWheel"
+    RIPPLES_SHINING = "RipplesShining"
+    STARS_TWINKLE = "StarsTwinkle"
+    SHADOW_DISAPPEAR = "ShadowDisappear"
+    RETRO_SNAKE = "RetroSnake"
+    NEON_STREAM = "NeonStream"
+    REACTION = "Reaction"
+    SINE_WAVE = "SineWave"
+    RETINUE_SCANNING = "RetinueScanning"
+    ROTATING_WINDMILL = "RotatingWindmill"
+    COLORFUL_WATERFALL = "ColorfulWaterfall"
+    BLOSSOMING = "Blossoming"
+    ROTATING_STORM = "RotatingStorm"
+    CUSTOM = "Custom"
 
     @property
     def id(self) -> int:
@@ -256,23 +325,23 @@ class Effect(Enum):
 class ControllerAction(Enum):
     """Built-in keyboard control (Bluetooth/receiver, lighting, reset...)."""
 
-    Bluetooth1 = "Bluetooth1"
-    Bluetooth2 = "Bluetooth2"
-    Bluetooth3 = "Bluetooth3"
-    Receiver24G = "Receiver24G"
-    BatteryLevel = "BatteryLevel"
-    WindowsKeyLock = "WindowsKeyLock"
-    FactoryReset = "FactoryReset"
-    BacklightEffect = "BacklightEffect"
-    BacklightColor = "BacklightColor"
-    LightingPowerSaving = "LightingPowerSaving"
-    KeyboardLighting = "KeyboardLighting"
-    BacklightBrightnessUp = "BacklightBrightnessUp"
-    BacklightBrightnessDown = "BacklightBrightnessDown"
-    BacklightSpeedDown = "BacklightSpeedDown"
-    BacklightSpeedUp = "BacklightSpeedUp"
-    LightBarMode = "LightBarMode"
-    LightBarColor = "LightBarColor"
+    BLUETOOTH_1 = "Bluetooth1"
+    BLUETOOTH_2 = "Bluetooth2"
+    BLUETOOTH_3 = "Bluetooth3"
+    RECEIVER_24G = "Receiver24G"
+    BATTERY_LEVEL = "BatteryLevel"
+    WINDOWS_KEY_LOCK = "WindowsKeyLock"
+    FACTORY_RESET = "FactoryReset"
+    BACKLIGHT_EFFECT = "BacklightEffect"
+    BACKLIGHT_COLOR = "BacklightColor"
+    LIGHTING_POWER_SAVING = "LightingPowerSaving"
+    KEYBOARD_LIGHTING = "KeyboardLighting"
+    BACKLIGHT_BRIGHTNESS_UP = "BacklightBrightnessUp"
+    BACKLIGHT_BRIGHTNESS_DOWN = "BacklightBrightnessDown"
+    BACKLIGHT_SPEED_DOWN = "BacklightSpeedDown"
+    BACKLIGHT_SPEED_UP = "BacklightSpeedUp"
+    LIGHT_BAR_MODE = "LightBarMode"
+    LIGHT_BAR_COLOR = "LightBarColor"
 
     @property
     def label(self) -> str:

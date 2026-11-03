@@ -3,13 +3,13 @@
 from ask87 import Keyboard, Effect, Key, KeyAction
 
 with Keyboard.open() as kb:
-    kb.set_effect(Effect.FixedOn, brightness=4)
-    kb.remap_key(0, Key.CapsLock, KeyAction.key(usage=0x29))  # Esc
+    kb.set_effect(Effect.FIXED_ON, brightness=4)
+    kb.remap_key(0, Key.CAPS_LOCK, KeyAction.key(usage=0x29))  # Esc
 
 or with asyncio:
 
     kb = await AsyncKeyboard.open()
-    await kb.set_effect(Effect.FixedOn, brightness=4)
+    await kb.set_effect(Effect.FIXED_ON, brightness=4)
     kb.close()
 """
 
@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from typing import Callable, Literal, Optional, Union
 
 from . import _native
-from ._enums import ControllerAction, Effect, Key, KeyGroup, Rect
+from ._enums import ControllerAction, Effect, Key, KeyGroup, KeyLike, KeySet, Rect
 from ._native import AsleepError, DeviceError, NotFoundError, X87Error
 
 __all__ = [
@@ -40,6 +40,8 @@ __all__ = [
     "Key",
     "KeyAction",
     "KeyGroup",
+    "KeyLike",
+    "KeySet",
     "Keyboard",
     "Lighting",
     "Macro",
@@ -402,7 +404,7 @@ class AsyncKeyboard:
     one keyboard are serialized.
 
         kb = await AsyncKeyboard.open()
-        await kb.set_effect(Effect.FixedOn)
+        await kb.set_effect(Effect.FIXED_ON)
         kb.close()  # or: async with await AsyncKeyboard.open() as kb: ...
     """
 
