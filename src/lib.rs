@@ -10,6 +10,7 @@
 //! # Ok::<(), attack_shark_x87::Error>(())
 //! ```
 
+mod rs_macro;
 pub mod asynchronous;
 pub mod controller;
 pub mod macros;
@@ -28,7 +29,7 @@ use std::time::Duration;
 use hidapi::{HidApi, HidDevice};
 
 pub use asynchronous::KeyboardAsync;
-pub use layout::Key;
+pub use layout::{Key, KeyGroup, LAYOUT};
 pub use controller::ControllerAction;
 pub use progress::SaveProgress;
 pub use macros::{Macro, MacroAction, MacroBank, MacroEvent, MacroRepeat};

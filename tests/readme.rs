@@ -26,3 +26,18 @@ fn readme_example() -> Result<(), attack_shark_x87::Error> {
 
 #[test]
 fn compiles() {}
+
+#[test]
+fn keys_and_layout_example() {
+    use attack_shark_x87::{KeyGroup, LAYOUT};
+    assert_eq!(Key::CapsLock.index(), 3);
+    assert_eq!(Key::Digit1.name(), "1");
+    assert_eq!("space".parse::<Key>(), Ok(Key::Space));
+    assert_eq!(LAYOUT[0][0], &[Key::Esc]);
+    assert_eq!(LAYOUT[0][1], &[Key::F1, Key::F2, Key::F3, Key::F4]);
+    assert_eq!(KeyGroup::FKey.layout()[0], &[Key::Esc]);
+    assert_eq!(KeyGroup::Main.layout()[0][0], Key::Grave);
+    assert_eq!(KeyGroup::Navigation.keys().count(), 9);
+    assert_eq!(Key::Left.group(), KeyGroup::Arrows);
+    assert_eq!(Key::Space.row(), 5);
+}

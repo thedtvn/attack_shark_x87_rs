@@ -1,485 +1,225 @@
 //! Physical keys of the X87 (from `Dev/kb/KB.ini`).
 //!
-//! [`Key`] names every physical key; [`Key::index`] is its LED / key-matrix
-//! index (the same index is used for per-key colour planes and for remapping).
+//! - [`Key`] names every physical key; [`Key::index`] is its LED / key-matrix
+//!   index (used both for per-key colours and for remapping).
+//! - [`LAYOUT`] is the physical layout as keyboard → row → group, where a group
+//!   is a cluster of adjacent keys separated from the next by a gap.
+//! - [`KeyGroup`] names the key areas (function row, main block, navigation,
+//!   arrows), each as a list of its clusters.
+//!
+//! The key table is defined once with [`define_keys!`](crate::rs_macro), so
+//! names and indices are never repeated by hand.
 //!
 //! ```
-//! use attack_shark_x87::layout::Key;
+//! use attack_shark_x87::layout::{Key, KeyGroup, LAYOUT};
+//!
 //! assert_eq!(Key::CapsLock.index(), 3);
 //! assert_eq!(Key::from_name("capslock"), Some(Key::CapsLock));
-//! assert_eq!(Key::Digit1.name(), "1");
 //! assert_eq!("Space".parse::<Key>(), Ok(Key::Space));
+//!
+//! // keyboard -> row -> group
+//! assert_eq!(LAYOUT[0][0], &[Key::Esc]);
+//! assert_eq!(LAYOUT[0][1], &[Key::F1, Key::F2, Key::F3, Key::F4]);
+//!
+//! // Areas
+//! assert_eq!(KeyGroup::FKey.layout()[0], &[Key::Esc]);
+//! assert_eq!(KeyGroup::Main.layout()[0][0], Key::Grave);   // first row starts with `
+//! assert_eq!(Key::Up.group(), KeyGroup::Arrows);
+//! assert_eq!(Key::Up.row(), 4);
+//! let all_f_keys: Vec<Key> = KeyGroup::FKey.keys().collect();
+//! assert_eq!(all_f_keys.len(), 13);
 //! ```
+
+use crate::rs_macro::define_keys;
 
 /// Number of LED slots in a colour plane (`0x7e`).
 pub const LED_SLOTS: usize = 126;
 
-/// A physical key on the X87. Variants are in keyboard order (row by row).
+define_keys! {
+    /// A physical key on the X87, in keyboard order (row by row).
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+    #[non_exhaustive]
+    pub enum Key {
+        Esc          => ("Esc", 0),
+        F1           => ("F1", 12),
+        F2           => ("F2", 18),
+        F3           => ("F3", 24),
+        F4           => ("F4", 30),
+        F5           => ("F5", 36),
+        F6           => ("F6", 42),
+        F7           => ("F7", 48),
+        F8           => ("F8", 54),
+        F9           => ("F9", 60),
+        F10          => ("F10", 66),
+        F11          => ("F11", 72),
+        F12          => ("F12", 78),
+        PrtSc        => ("PrtSc", 84),
+        ScrLock      => ("ScrLock", 90),
+        Pause        => ("Pause", 96),
+        Grave        => ("`", 1),
+        Digit1       => ("1", 7),
+        Digit2       => ("2", 13),
+        Digit3       => ("3", 19),
+        Digit4       => ("4", 25),
+        Digit5       => ("5", 31),
+        Digit6       => ("6", 37),
+        Digit7       => ("7", 43),
+        Digit8       => ("8", 49),
+        Digit9       => ("9", 55),
+        Digit0       => ("0", 61),
+        Minus        => ("-", 67),
+        Equal        => ("=", 73),
+        Backspace    => ("Backspace", 79),
+        Insert       => ("Insert", 85),
+        Home         => ("Home", 91),
+        PgUp         => ("PgUp", 97),
+        Tab          => ("Tab", 2),
+        Q            => ("Q", 8),
+        W            => ("W", 14),
+        E            => ("E", 20),
+        R            => ("R", 26),
+        T            => ("T", 32),
+        Y            => ("Y", 38),
+        U            => ("U", 44),
+        I            => ("I", 50),
+        O            => ("O", 56),
+        P            => ("P", 62),
+        BracketLeft  => ("[", 68),
+        BracketRight => ("]", 74),
+        Backslash    => ("\\", 80),
+        Delete       => ("Delete", 86),
+        End          => ("End", 92),
+        PgDn         => ("PgDn", 98),
+        CapsLock     => ("CapsLock", 3),
+        A            => ("A", 9),
+        S            => ("S", 15),
+        D            => ("D", 21),
+        F            => ("F", 27),
+        G            => ("G", 33),
+        H            => ("H", 39),
+        J            => ("J", 45),
+        K            => ("K", 51),
+        L            => ("L", 57),
+        Semicolon    => (";", 63),
+        Quote        => ("'", 69),
+        Enter        => ("Enter", 81),
+        LShift       => ("LShift", 4),
+        Z            => ("Z", 16),
+        X            => ("X", 22),
+        C            => ("C", 28),
+        V            => ("V", 34),
+        B            => ("B", 40),
+        N            => ("N", 46),
+        M            => ("M", 52),
+        Comma        => (",", 58),
+        Period       => (".", 64),
+        Slash        => ("/", 70),
+        RShift       => ("RShift", 82),
+        Up           => ("Up", 94),
+        LCtrl        => ("LCtrl", 5),
+        LWin         => ("LWin", 11),
+        LAlt         => ("LAlt", 17),
+        Space        => ("Space", 35),
+        RAlt         => ("RAlt", 53),
+        Fn           => ("Fn", 59),
+        App          => ("App", 65),
+        RCtrl        => ("RCtrl", 83),
+        Left         => ("Left", 89),
+        Down         => ("Down", 95),
+        Right        => ("Right", 101),
+    }
+}
+
+// ---- physical clusters (shared by LAYOUT and KeyGroup) -------------------
+
+const ESC: &[Key] = &[Key::Esc];
+const F1_F4: &[Key] = &[Key::F1, Key::F2, Key::F3, Key::F4];
+const F5_F8: &[Key] = &[Key::F5, Key::F6, Key::F7, Key::F8];
+const F9_F12: &[Key] = &[Key::F9, Key::F10, Key::F11, Key::F12];
+const NAV_TOP: &[Key] = &[Key::PrtSc, Key::ScrLock, Key::Pause];
+const MAIN_1: &[Key] = &[Key::Grave, Key::Digit1, Key::Digit2, Key::Digit3, Key::Digit4, Key::Digit5, Key::Digit6, Key::Digit7, Key::Digit8, Key::Digit9, Key::Digit0, Key::Minus, Key::Equal, Key::Backspace];
+const NAV_1: &[Key] = &[Key::Insert, Key::Home, Key::PgUp];
+const MAIN_2: &[Key] = &[Key::Tab, Key::Q, Key::W, Key::E, Key::R, Key::T, Key::Y, Key::U, Key::I, Key::O, Key::P, Key::BracketLeft, Key::BracketRight, Key::Backslash];
+const NAV_2: &[Key] = &[Key::Delete, Key::End, Key::PgDn];
+const MAIN_3: &[Key] = &[Key::CapsLock, Key::A, Key::S, Key::D, Key::F, Key::G, Key::H, Key::J, Key::K, Key::L, Key::Semicolon, Key::Quote, Key::Enter];
+const MAIN_4: &[Key] = &[Key::LShift, Key::Z, Key::X, Key::C, Key::V, Key::B, Key::N, Key::M, Key::Comma, Key::Period, Key::Slash, Key::RShift];
+const ARROW_UP: &[Key] = &[Key::Up];
+const MAIN_5: &[Key] = &[Key::LCtrl, Key::LWin, Key::LAlt, Key::Space, Key::RAlt, Key::Fn, Key::App, Key::RCtrl];
+const ARROWS: &[Key] = &[Key::Left, Key::Down, Key::Right];
+
+/// The physical layout: keyboard → row → group (cluster of adjacent keys).
+///
+/// Rows go top to bottom; groups and keys go left to right. Every key appears
+/// exactly once, and reading it row by row gives [`Key::ALL`].
+pub const LAYOUT: &[&[&[Key]]] = &[
+    &[ESC, F1_F4, F5_F8, F9_F12, NAV_TOP],
+    &[MAIN_1, NAV_1],
+    &[MAIN_2, NAV_2],
+    &[MAIN_3],
+    &[MAIN_4, ARROW_UP],
+    &[MAIN_5, ARROWS],
+];
+
+/// A key area. [`KeyGroup::layout`] returns its clusters of adjacent keys.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[non_exhaustive]
-pub enum Key {
-    /// `Esc`, index 0.
-    Esc,
-    /// `F1`, index 12.
-    F1,
-    /// `F2`, index 18.
-    F2,
-    /// `F3`, index 24.
-    F3,
-    /// `F4`, index 30.
-    F4,
-    /// `F5`, index 36.
-    F5,
-    /// `F6`, index 42.
-    F6,
-    /// `F7`, index 48.
-    F7,
-    /// `F8`, index 54.
-    F8,
-    /// `F9`, index 60.
-    F9,
-    /// `F10`, index 66.
-    F10,
-    /// `F11`, index 72.
-    F11,
-    /// `F12`, index 78.
-    F12,
-    /// `PrtSc`, index 84.
-    PrtSc,
-    /// `ScrLock`, index 90.
-    ScrLock,
-    /// `Pause`, index 96.
-    Pause,
-    /// ```, index 1.
-    Grave,
-    /// `1`, index 7.
-    Digit1,
-    /// `2`, index 13.
-    Digit2,
-    /// `3`, index 19.
-    Digit3,
-    /// `4`, index 25.
-    Digit4,
-    /// `5`, index 31.
-    Digit5,
-    /// `6`, index 37.
-    Digit6,
-    /// `7`, index 43.
-    Digit7,
-    /// `8`, index 49.
-    Digit8,
-    /// `9`, index 55.
-    Digit9,
-    /// `0`, index 61.
-    Digit0,
-    /// `-`, index 67.
-    Minus,
-    /// `=`, index 73.
-    Equal,
-    /// `Backspace`, index 79.
-    Backspace,
-    /// `Insert`, index 85.
-    Insert,
-    /// `Home`, index 91.
-    Home,
-    /// `PgUp`, index 97.
-    PgUp,
-    /// `Tab`, index 2.
-    Tab,
-    /// `Q`, index 8.
-    Q,
-    /// `W`, index 14.
-    W,
-    /// `E`, index 20.
-    E,
-    /// `R`, index 26.
-    R,
-    /// `T`, index 32.
-    T,
-    /// `Y`, index 38.
-    Y,
-    /// `U`, index 44.
-    U,
-    /// `I`, index 50.
-    I,
-    /// `O`, index 56.
-    O,
-    /// `P`, index 62.
-    P,
-    /// `[`, index 68.
-    BracketLeft,
-    /// `]`, index 74.
-    BracketRight,
-    /// `\`, index 80.
-    Backslash,
-    /// `Delete`, index 86.
-    Delete,
-    /// `End`, index 92.
-    End,
-    /// `PgDn`, index 98.
-    PgDn,
-    /// `CapsLock`, index 3.
-    CapsLock,
-    /// `A`, index 9.
-    A,
-    /// `S`, index 15.
-    S,
-    /// `D`, index 21.
-    D,
-    /// `F`, index 27.
-    F,
-    /// `G`, index 33.
-    G,
-    /// `H`, index 39.
-    H,
-    /// `J`, index 45.
-    J,
-    /// `K`, index 51.
-    K,
-    /// `L`, index 57.
-    L,
-    /// `;`, index 63.
-    Semicolon,
-    /// `'`, index 69.
-    Quote,
-    /// `Enter`, index 81.
-    Enter,
-    /// `LShift`, index 4.
-    LShift,
-    /// `Z`, index 16.
-    Z,
-    /// `X`, index 22.
-    X,
-    /// `C`, index 28.
-    C,
-    /// `V`, index 34.
-    V,
-    /// `B`, index 40.
-    B,
-    /// `N`, index 46.
-    N,
-    /// `M`, index 52.
-    M,
-    /// `,`, index 58.
-    Comma,
-    /// `.`, index 64.
-    Period,
-    /// `/`, index 70.
-    Slash,
-    /// `RShift`, index 82.
-    RShift,
-    /// `Up`, index 94.
-    Up,
-    /// `LCtrl`, index 5.
-    LCtrl,
-    /// `LWin`, index 11.
-    LWin,
-    /// `LAlt`, index 17.
-    LAlt,
-    /// `Space`, index 35.
-    Space,
-    /// `RAlt`, index 53.
-    RAlt,
-    /// `Fn`, index 59.
-    Fn,
-    /// `App`, index 65.
-    App,
-    /// `RCtrl`, index 83.
-    RCtrl,
-    /// `Left`, index 89.
-    Left,
-    /// `Down`, index 95.
-    Down,
-    /// `Right`, index 101.
-    Right,
+pub enum KeyGroup {
+    /// Esc and the function keys, split into the physical clusters `[Esc] [F1–F4] [F5–F8] [F9–F12]`.
+    FKey,
+    /// The main alphanumeric block, one entry per row, from the number row to the bottom row.
+    Main,
+    /// `PrtSc ScrLock Pause`, `Insert Home PgUp` and `Delete End PgDn`, one entry per row.
+    Navigation,
+    /// The arrow keys: `[Up]` then `[Left Down Right]`.
+    Arrows,
+}
+
+const GROUP_FKEY: &[&[Key]] = &[ESC, F1_F4, F5_F8, F9_F12];
+const GROUP_MAIN: &[&[Key]] = &[MAIN_1, MAIN_2, MAIN_3, MAIN_4, MAIN_5];
+const GROUP_NAVIGATION: &[&[Key]] = &[NAV_TOP, NAV_1, NAV_2];
+const GROUP_ARROWS: &[&[Key]] = &[ARROW_UP, ARROWS];
+
+impl KeyGroup {
+    /// Every area, top-left to bottom-right.
+    pub const ALL: [KeyGroup; 4] = [KeyGroup::FKey, KeyGroup::Main, KeyGroup::Navigation, KeyGroup::Arrows];
+
+    /// The area's clusters of adjacent keys. For [`KeyGroup::Main`] and
+    /// [`KeyGroup::Navigation`] each cluster is one row.
+    pub const fn layout(self) -> &'static [&'static [Key]] {
+        match self {
+            KeyGroup::FKey => GROUP_FKEY,
+            KeyGroup::Main => GROUP_MAIN,
+            KeyGroup::Navigation => GROUP_NAVIGATION,
+            KeyGroup::Arrows => GROUP_ARROWS,
+        }
+    }
+
+    /// Every key in the area, left to right and top to bottom.
+    pub fn keys(self) -> impl Iterator<Item = Key> {
+        self.layout().iter().flat_map(|cluster| cluster.iter().copied())
+    }
+
+    /// Whether `key` is in this area.
+    pub fn contains(self, key: Key) -> bool {
+        self.keys().any(|k| k == key)
+    }
 }
 
 impl Key {
-    /// Every key, in keyboard order.
-    pub const ALL: [Key; 87] = [
-        Key::Esc,
-        Key::F1,
-        Key::F2,
-        Key::F3,
-        Key::F4,
-        Key::F5,
-        Key::F6,
-        Key::F7,
-        Key::F8,
-        Key::F9,
-        Key::F10,
-        Key::F11,
-        Key::F12,
-        Key::PrtSc,
-        Key::ScrLock,
-        Key::Pause,
-        Key::Grave,
-        Key::Digit1,
-        Key::Digit2,
-        Key::Digit3,
-        Key::Digit4,
-        Key::Digit5,
-        Key::Digit6,
-        Key::Digit7,
-        Key::Digit8,
-        Key::Digit9,
-        Key::Digit0,
-        Key::Minus,
-        Key::Equal,
-        Key::Backspace,
-        Key::Insert,
-        Key::Home,
-        Key::PgUp,
-        Key::Tab,
-        Key::Q,
-        Key::W,
-        Key::E,
-        Key::R,
-        Key::T,
-        Key::Y,
-        Key::U,
-        Key::I,
-        Key::O,
-        Key::P,
-        Key::BracketLeft,
-        Key::BracketRight,
-        Key::Backslash,
-        Key::Delete,
-        Key::End,
-        Key::PgDn,
-        Key::CapsLock,
-        Key::A,
-        Key::S,
-        Key::D,
-        Key::F,
-        Key::G,
-        Key::H,
-        Key::J,
-        Key::K,
-        Key::L,
-        Key::Semicolon,
-        Key::Quote,
-        Key::Enter,
-        Key::LShift,
-        Key::Z,
-        Key::X,
-        Key::C,
-        Key::V,
-        Key::B,
-        Key::N,
-        Key::M,
-        Key::Comma,
-        Key::Period,
-        Key::Slash,
-        Key::RShift,
-        Key::Up,
-        Key::LCtrl,
-        Key::LWin,
-        Key::LAlt,
-        Key::Space,
-        Key::RAlt,
-        Key::Fn,
-        Key::App,
-        Key::RCtrl,
-        Key::Left,
-        Key::Down,
-        Key::Right,
-    ];
-
-    /// LED / key-matrix index.
-    pub const fn index(self) -> u8 {
-        match self {
-            Key::Esc          => 0,
-            Key::F1           => 12,
-            Key::F2           => 18,
-            Key::F3           => 24,
-            Key::F4           => 30,
-            Key::F5           => 36,
-            Key::F6           => 42,
-            Key::F7           => 48,
-            Key::F8           => 54,
-            Key::F9           => 60,
-            Key::F10          => 66,
-            Key::F11          => 72,
-            Key::F12          => 78,
-            Key::PrtSc        => 84,
-            Key::ScrLock      => 90,
-            Key::Pause        => 96,
-            Key::Grave        => 1,
-            Key::Digit1       => 7,
-            Key::Digit2       => 13,
-            Key::Digit3       => 19,
-            Key::Digit4       => 25,
-            Key::Digit5       => 31,
-            Key::Digit6       => 37,
-            Key::Digit7       => 43,
-            Key::Digit8       => 49,
-            Key::Digit9       => 55,
-            Key::Digit0       => 61,
-            Key::Minus        => 67,
-            Key::Equal        => 73,
-            Key::Backspace    => 79,
-            Key::Insert       => 85,
-            Key::Home         => 91,
-            Key::PgUp         => 97,
-            Key::Tab          => 2,
-            Key::Q            => 8,
-            Key::W            => 14,
-            Key::E            => 20,
-            Key::R            => 26,
-            Key::T            => 32,
-            Key::Y            => 38,
-            Key::U            => 44,
-            Key::I            => 50,
-            Key::O            => 56,
-            Key::P            => 62,
-            Key::BracketLeft  => 68,
-            Key::BracketRight => 74,
-            Key::Backslash    => 80,
-            Key::Delete       => 86,
-            Key::End          => 92,
-            Key::PgDn         => 98,
-            Key::CapsLock     => 3,
-            Key::A            => 9,
-            Key::S            => 15,
-            Key::D            => 21,
-            Key::F            => 27,
-            Key::G            => 33,
-            Key::H            => 39,
-            Key::J            => 45,
-            Key::K            => 51,
-            Key::L            => 57,
-            Key::Semicolon    => 63,
-            Key::Quote        => 69,
-            Key::Enter        => 81,
-            Key::LShift       => 4,
-            Key::Z            => 16,
-            Key::X            => 22,
-            Key::C            => 28,
-            Key::V            => 34,
-            Key::B            => 40,
-            Key::N            => 46,
-            Key::M            => 52,
-            Key::Comma        => 58,
-            Key::Period       => 64,
-            Key::Slash        => 70,
-            Key::RShift       => 82,
-            Key::Up           => 94,
-            Key::LCtrl        => 5,
-            Key::LWin         => 11,
-            Key::LAlt         => 17,
-            Key::Space        => 35,
-            Key::RAlt         => 53,
-            Key::Fn           => 59,
-            Key::App          => 65,
-            Key::RCtrl        => 83,
-            Key::Left         => 89,
-            Key::Down         => 95,
-            Key::Right        => 101,
-        }
+    /// The area this key belongs to.
+    pub fn group(self) -> KeyGroup {
+        KeyGroup::ALL
+            .into_iter()
+            .find(|g| g.contains(self))
+            .expect("every key is in a KeyGroup")
     }
 
-    /// Display name, as used by the vendor app and the web app (e.g. `"1"`, `"CapsLock"`).
-    pub const fn name(self) -> &'static str {
-        match self {
-            Key::Esc          => "Esc",
-            Key::F1           => "F1",
-            Key::F2           => "F2",
-            Key::F3           => "F3",
-            Key::F4           => "F4",
-            Key::F5           => "F5",
-            Key::F6           => "F6",
-            Key::F7           => "F7",
-            Key::F8           => "F8",
-            Key::F9           => "F9",
-            Key::F10          => "F10",
-            Key::F11          => "F11",
-            Key::F12          => "F12",
-            Key::PrtSc        => "PrtSc",
-            Key::ScrLock      => "ScrLock",
-            Key::Pause        => "Pause",
-            Key::Grave        => "`",
-            Key::Digit1       => "1",
-            Key::Digit2       => "2",
-            Key::Digit3       => "3",
-            Key::Digit4       => "4",
-            Key::Digit5       => "5",
-            Key::Digit6       => "6",
-            Key::Digit7       => "7",
-            Key::Digit8       => "8",
-            Key::Digit9       => "9",
-            Key::Digit0       => "0",
-            Key::Minus        => "-",
-            Key::Equal        => "=",
-            Key::Backspace    => "Backspace",
-            Key::Insert       => "Insert",
-            Key::Home         => "Home",
-            Key::PgUp         => "PgUp",
-            Key::Tab          => "Tab",
-            Key::Q            => "Q",
-            Key::W            => "W",
-            Key::E            => "E",
-            Key::R            => "R",
-            Key::T            => "T",
-            Key::Y            => "Y",
-            Key::U            => "U",
-            Key::I            => "I",
-            Key::O            => "O",
-            Key::P            => "P",
-            Key::BracketLeft  => "[",
-            Key::BracketRight => "]",
-            Key::Backslash    => "\\",
-            Key::Delete       => "Delete",
-            Key::End          => "End",
-            Key::PgDn         => "PgDn",
-            Key::CapsLock     => "CapsLock",
-            Key::A            => "A",
-            Key::S            => "S",
-            Key::D            => "D",
-            Key::F            => "F",
-            Key::G            => "G",
-            Key::H            => "H",
-            Key::J            => "J",
-            Key::K            => "K",
-            Key::L            => "L",
-            Key::Semicolon    => ";",
-            Key::Quote        => "'",
-            Key::Enter        => "Enter",
-            Key::LShift       => "LShift",
-            Key::Z            => "Z",
-            Key::X            => "X",
-            Key::C            => "C",
-            Key::V            => "V",
-            Key::B            => "B",
-            Key::N            => "N",
-            Key::M            => "M",
-            Key::Comma        => ",",
-            Key::Period       => ".",
-            Key::Slash        => "/",
-            Key::RShift       => "RShift",
-            Key::Up           => "Up",
-            Key::LCtrl        => "LCtrl",
-            Key::LWin         => "LWin",
-            Key::LAlt         => "LAlt",
-            Key::Space        => "Space",
-            Key::RAlt         => "RAlt",
-            Key::Fn           => "Fn",
-            Key::App          => "App",
-            Key::RCtrl        => "RCtrl",
-            Key::Left         => "Left",
-            Key::Down         => "Down",
-            Key::Right        => "Right",
-        }
-    }
-
-    /// Look up a key by display name (case-insensitive), e.g. from a config file.
-    pub fn from_name(name: &str) -> Option<Key> {
-        Key::ALL.into_iter().find(|k| k.name().eq_ignore_ascii_case(name))
-    }
-
-    /// The key at an LED / key-matrix index, if any.
-    pub fn from_index(index: u8) -> Option<Key> {
-        Key::ALL.into_iter().find(|k| k.index() == index)
+    /// Physical row, 0 (function row) to 5 (bottom row).
+    pub fn row(self) -> usize {
+        LAYOUT
+            .iter()
+            .position(|row| row.iter().any(|cluster| cluster.contains(&self)))
+            .expect("every key is in LAYOUT")
     }
 }
 
@@ -520,15 +260,16 @@ mod tests {
 
     #[test]
     fn indices_and_names_are_unique_and_in_range() {
+        assert_eq!(Key::COUNT, 87);
         let mut idx: Vec<u8> = Key::ALL.iter().map(|k| k.index()).collect();
         idx.sort_unstable();
         idx.dedup();
-        assert_eq!(idx.len(), Key::ALL.len());
+        assert_eq!(idx.len(), Key::COUNT);
         assert!(idx.iter().all(|&i| (i as usize) < LED_SLOTS));
         let mut names: Vec<String> = Key::ALL.iter().map(|k| k.name().to_ascii_lowercase()).collect();
         names.sort();
         names.dedup();
-        assert_eq!(names.len(), Key::ALL.len());
+        assert_eq!(names.len(), Key::COUNT);
     }
 
     #[test]
@@ -546,7 +287,6 @@ mod tests {
 
     #[test]
     fn matches_vendor_table() {
-        // Spot checks against KB.ini / the previous (name, index) table.
         assert_eq!(Key::Esc.index(), 0);
         assert_eq!(Key::Grave.index(), 1);
         assert_eq!(Key::Digit4.index(), 25);
@@ -554,5 +294,49 @@ mod tests {
         assert_eq!(Key::Backslash.name(), "\\");
         assert_eq!(Key::Fn.index(), 59);
         assert_eq!(Key::Right.index(), 101);
+    }
+
+    #[test]
+    fn layout_lists_every_key_once_in_keyboard_order() {
+        let flat: Vec<Key> = LAYOUT.iter().flat_map(|r| r.iter()).flat_map(|c| c.iter().copied()).collect();
+        assert_eq!(flat, Key::ALL.to_vec());
+        assert_eq!(LAYOUT.len(), 6);
+        assert_eq!(LAYOUT[0].len(), 5, "Esc, F1-F4, F5-F8, F9-F12, PrtSc-Pause");
+        assert_eq!(LAYOUT[0][4], &[Key::PrtSc, Key::ScrLock, Key::Pause]);
+        assert_eq!(LAYOUT[1][0].last(), Some(&Key::Backspace));
+        assert_eq!(LAYOUT[5][1], &[Key::Left, Key::Down, Key::Right]);
+    }
+
+    #[test]
+    fn groups_partition_the_layout() {
+        // Every group cluster is a cluster of LAYOUT and every LAYOUT cluster
+        // is in exactly one group.
+        let layout_clusters: Vec<&[Key]> = LAYOUT.iter().flat_map(|r| r.iter().copied()).collect();
+        let group_clusters: Vec<&[Key]> = KeyGroup::ALL.iter().flat_map(|g| g.layout().iter().copied()).collect();
+        assert_eq!(layout_clusters.len(), group_clusters.len());
+        for c in &layout_clusters {
+            assert_eq!(group_clusters.iter().filter(|g| *g == c).count(), 1);
+        }
+        let total: usize = KeyGroup::ALL.iter().map(|g| g.keys().count()).sum();
+        assert_eq!(total, Key::COUNT);
+    }
+
+    #[test]
+    fn group_and_row_lookup() {
+        assert_eq!(KeyGroup::FKey.layout(), &[&[Key::Esc][..],
+            &[Key::F1, Key::F2, Key::F3, Key::F4], &[Key::F5, Key::F6, Key::F7, Key::F8],
+            &[Key::F9, Key::F10, Key::F11, Key::F12]]);
+        assert_eq!(KeyGroup::Main.layout().len(), 5);
+        assert_eq!(KeyGroup::Main.layout()[0].len(), 14);
+        assert_eq!(Key::Esc.group(), KeyGroup::FKey);
+        assert_eq!(Key::Space.group(), KeyGroup::Main);
+        assert_eq!(Key::PgDn.group(), KeyGroup::Navigation);
+        assert_eq!(Key::Left.group(), KeyGroup::Arrows);
+        assert_eq!(Key::Esc.row(), 0);
+        assert_eq!(Key::Grave.row(), 1);
+        assert_eq!(Key::Enter.row(), 3);
+        assert_eq!(Key::Space.row(), 5);
+        assert!(KeyGroup::Navigation.contains(Key::PrtSc));
+        assert!(!KeyGroup::Main.contains(Key::Up));
     }
 }

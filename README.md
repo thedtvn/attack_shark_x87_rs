@@ -116,6 +116,35 @@ Use at your own risk.
 
 [MIT](LICENSE) © 2026 The DT
 
+## Keys and layout
+
+```rust
+use attack_shark_x87::{Key, KeyGroup, LAYOUT};
+
+// Every physical key is a variant; no names or indices to hard-code.
+assert_eq!(Key::CapsLock.index(), 3);
+assert_eq!(Key::Digit1.name(), "1");
+assert_eq!("space".parse::<Key>(), Ok(Key::Space));
+
+// Physical layout: keyboard -> row -> group (cluster of adjacent keys).
+assert_eq!(LAYOUT[0][0], &[Key::Esc]);
+assert_eq!(LAYOUT[0][1], &[Key::F1, Key::F2, Key::F3, Key::F4]);
+
+// Areas, each as its list of clusters.
+assert_eq!(KeyGroup::FKey.layout()[0], &[Key::Esc]);       // [[Esc], [F1..F4], [F5..F8], [F9..F12]]
+assert_eq!(KeyGroup::Main.layout()[0][0], Key::Grave);     // one entry per row: [` 1 2 ... = Backspace], ...
+for key in KeyGroup::Navigation.keys() { let _ = key; }   // PrtSc ScrLock Pause / Insert Home PgUp / Delete End PgDn
+assert_eq!(Key::Left.group(), KeyGroup::Arrows);
+assert_eq!(Key::Space.row(), 5);
+```
+
+- `LAYOUT` has 6 rows. Reading it row by row gives `Key::ALL`.
+- `KeyGroup` is `FKey`, `Main`, `Navigation` or `Arrows`; together they cover
+  every key exactly once.
+- The key table is written once with an internal `define_keys!` macro
+  (`src/rs_macro.rs`) that generates `name()`, `index()`, `from_name()`,
+  `from_index()`, `ALL` and `COUNT`. A duplicated index is a compile error.
+
 ## Async
 
 `KeyboardAsync` is an async-friendly handle with the same methods as
