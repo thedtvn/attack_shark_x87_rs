@@ -141,6 +141,11 @@ assert_eq!(Key::Space.row(), 5);
 - `LAYOUT` has 6 rows. Reading it row by row gives `Key::ALL`.
 - `KeyGroup` is `FKey`, `Main`, `Navigation` or `Arrows`; together they cover
   every key exactly once.
+- Each physical cluster is also a const on `KeyGroup`, used by both `LAYOUT`
+  and the areas: `ESC`, `F1_F4`, `F5_F8`, `F9_F12`, `PRINT_SCROLL_PAUSE`,
+  `NUMBER_ROW`, `INSERT_HOME_PGUP`, `TOP_ROW`, `DELETE_END_PGDN`, `HOME_ROW`,
+  `SHIFT_ROW`, `ARROW_UP`, `BOTTOM_ROW`, `ARROW_LEFT_DOWN_RIGHT`.
+  `KeyGroup::CLUSTERS` lists all 14 in keyboard order.
 - The key table is written once with an internal `define_keys!` macro
   (`src/rs_macro.rs`) that generates `name()`, `index()`, `from_name()`,
   `from_index()`, `ALL` and `COUNT`. A duplicated index is a compile error.

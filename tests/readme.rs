@@ -40,4 +40,6 @@ fn keys_and_layout_example() {
     assert_eq!(KeyGroup::Navigation.keys().count(), 9);
     assert_eq!(Key::Left.group(), KeyGroup::Arrows);
     assert_eq!(Key::Space.row(), 5);
+    assert_eq!(KeyGroup::F1_F4, &[Key::F1, Key::F2, Key::F3, Key::F4]);
+    assert_eq!(KeyGroup::CLUSTERS.len(), 14);
 }
