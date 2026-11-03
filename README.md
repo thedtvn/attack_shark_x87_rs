@@ -24,7 +24,7 @@ Browser version (WebHID + React): [attack_shark_x87_web](https://github.com/thed
 | Debounce (including beyond the app's 5 stages) | ✓ | ✓ verified |
 | Realtime frames ("music mode" transport) | untested | ✓ verified |
 | Factory reset | ✓ | ✓ |
-| Experimental macro bank upload + repeat bindings | codec + read-back | experimental paged read/write + comparison |
+| Experimental macro bank read/save (with progress) + repeat bindings | ✓ | ✓ paged read/write |
 
 "Verified" means tested against a real keyboard. The USB path follows the same
 decompiled code but has not been tested on hardware yet.
@@ -153,8 +153,6 @@ use attack_shark_x87::{Keyboard, KeyAction};
 use attack_shark_x87::macros::{Macro, MacroAction, MacroEvent, MacroBank, MacroRepeat};
 # fn example() -> Result<(), attack_shark_x87::Error> {
 let kb = Keyboard::open()?;
-// Export this backup before replacing anything (2.4G reads are experimental).
-let backup = kb.macro_bank()?;
 let bank = MacroBank { macros: vec![Macro {
     name: "Type A".into(),
     events: vec![
@@ -162,30 +160,35 @@ let bank = MacroBank { macros: vec![Macro {
         MacroEvent { action: MacroAction::Key { usage: 4, down: false }, delay_ms: 50 },
     ],
 }] };
-// EXPLICIT DESTRUCTIVE OPERATION: replaces the shared bank used by all layers.
-let read_back_verified = kb.replace_macro_bank(&bank)?;
-// Bind only after successful upload (choose a key deliberately).
+// Replaces the whole shared bank used by all layers (about 10 s over 2.4G).
+kb.save_macro_bank(&bank, &mut |p| println!("saving {}%", p.percent))?;
+// Bind a key deliberately; saving the bank never changes key bindings.
 kb.remap_key(0, "F12", KeyAction::Macro { slot: 0, repeat: MacroRepeat::Times(1) })?;
-# let _ = (backup, read_back_verified);
 # Ok(()) }
 ```
 
 - Names: up to 30 UTF-16 code units. Delays: 0..1,048,575 ms.
 - Bank: 4096 bytes; 32 macros is a conservative client limit, not a measured
   firmware limit. Events must fit alongside names and the directory.
-- Slot numbers are shared across all four layers. Replacing slot 0 changes
-  **every key** referencing it. Missing referenced slots are refused before upload.
-- USB and wireless uploads are compared against complete read-back. Wireless
-  reads use command `43`, eight tagged 512-byte pages; writes use command `03`.
-  Vendor macro read wrapper `00487d20` is confirmed in Ghidra. A 2.4G
-  write + read-back + restore was verified on hardware; playback is not yet
-  validated. Failure leaves the bank potentially partially written.
+- `save_macro_bank` works like the vendor app (`G5KB_ApplySetting` →
+  `W3632_WriteMacroData`): it writes the bank once in eight 512-byte units,
+  reporting a non-decreasing percentage. Nothing is read first and nothing is
+  read back: every packet is acknowledged and retried by the transport.
+  `replace_macro_bank` is the same without progress and refuses an empty bank;
+  `clear_macro_bank` writes an empty one.
+- Slot numbers are shared across all four layers and key bindings are not
+  checked. A key bound to slot `n` plays whatever is now in slot `n`; a key
+  bound past the end of the bank does nothing.
+- `macro_bank()` reads the bank (USB, or eight tagged 512-byte pages over
+  2.4G via command `43`, vendor wrapper `00487d20`). A 2.4G write + read +
+  restore was verified on hardware once; playback is not yet validated.
 - `cargo run --example wireless_macro_check` reads the bank read-only and
   prints timings (2.4G: ~1.9 s for the bank, ~1.9 s for four layers).
+- `cargo run --example save_progress_check -- --confirm` writes a test bank,
+  reads it back and restores the original.
 - The receiver cannot pipeline requests; reads are sequential. Dropped
   packets are kept across quick re-requests rather than restarting blindly.
-- `clear_macro_bank()` explicitly clears an unreferenced bank. Ordinary
-  `replace_macro_bank` still refuses an accidentally empty list.
-- Upload is not atomic; interruption can leave partial data. Keep your backup.
+- Saving is not atomic: interruption can leave a partial bank; save again.
 - `cargo run --example macro` only builds/prints bytes offline. The
+  `--upload` flag saves the bank with a progress bar; it never assigns a key.
   `--upload` flag explicitly enables the replacement; it never assigns a key.

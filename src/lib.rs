@@ -15,6 +15,7 @@ pub mod macros;
 pub mod keymap;
 pub mod layout;
 pub mod led;
+pub mod progress;
 pub mod protocol;
 pub mod realtime;
 pub mod wireless;
@@ -26,6 +27,7 @@ use std::time::Duration;
 use hidapi::{HidApi, HidDevice};
 
 pub use controller::ControllerAction;
+pub use progress::SaveProgress;
 pub use macros::{Macro, MacroAction, MacroBank, MacroEvent, MacroRepeat};
 pub use keymap::{KeyAction, KeyMatrix};
 pub use led::{Effect, EffectSettings, LedConfig, PerKeyColors, RgbTable};
@@ -217,6 +219,59 @@ impl Keyboard {
         Err(last.unwrap().into())
     }
 
+    /// Read the 4096-byte bank in eight 512-byte units (USB chunks or 2.4G
+    /// pages), calling `on_page(done_of_8)` after each.
+    fn read_macro_pages(&self, on_page: &mut dyn FnMut(f32)) -> Result<Vec<u8>> {
+        let mut bank = Vec::with_capacity(macros::BANK_SIZE);
+        match &self.t {
+            Transport::Wireless(w) => {
+                for page in 0..8u8 {
+                    bank.extend(w.read(wcmd::GET_MACRO, page, 512)?);
+                    on_page((page + 1) as f32 / 8.0);
+                }
+            }
+            Transport::Wired { dev, report_id, delay } => {
+                let cmd = Block::Macro.wired() | READ_FLAG;
+                for i in 0..8u8 {
+                    sleep(*delay);
+                    let pkt = build_packet(*report_id, cmd, 0, 8, i, CHUNK_LEN as u16, &[]);
+                    Self::send_feature(dev, &pkt)?;
+                    sleep(*delay);
+                    let mut buf = [0u8; REPORT_LEN];
+                    buf[0] = *report_id;
+                    let got = dev.get_feature_report(&mut buf)?;
+                    bank.extend_from_slice(parse_reply(&buf[..got], &pkt)?);
+                    on_page((i + 1) as f32 / 8.0);
+                }
+            }
+        }
+        Ok(bank)
+    }
+
+    /// Write the 4096-byte bank in eight 512-byte units with progress.
+    fn write_macro_pages(&self, data: &[u8], on_page: &mut dyn FnMut(f32)) -> Result<()> {
+        if data.len() != macros::BANK_SIZE { return Err(Error::InvalidArgument("macro bank must be 4096 bytes")); }
+        match &self.t {
+            Transport::Wireless(w) => {
+                for (page, bytes) in data.chunks(512).enumerate() {
+                    w.write(wcmd::SET_MACRO, page as u8, bytes, 6)?;
+                    on_page((page + 1) as f32 / 8.0);
+                    sleep(Duration::from_millis(100));
+                }
+            }
+            Transport::Wired { dev, report_id, delay } => {
+                let cmd = Block::Macro.wired();
+                for (i, chunk) in data.chunks(CHUNK_LEN).enumerate() {
+                    sleep(*delay);
+                    let pkt = build_packet(*report_id, cmd, 0, 8, i as u8, chunk.len() as u16, chunk);
+                    Self::send_feature(dev, &pkt)?;
+                    on_page((i + 1) as f32 / 8.0);
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Raw transport write. `cmd` is the transport specific command number
     /// (see [`protocol::Command`] for USB and [`wireless::cmd`] for 2.4G).
     pub fn write_raw(&self, cmd: u8, sub: u8, data: &[u8]) -> Result<()> {
@@ -274,11 +329,7 @@ impl Keyboard {
     pub fn read_block(&self, block: Block, sub: u8, len: usize) -> Result<Vec<u8>> {
         if block == Block::Macro {
             if sub != 0 || len != macros::BANK_SIZE { return Err(Error::InvalidArgument("macro read requires full 4096-byte bank")); }
-            if let Transport::Wireless(w) = &self.t {
-                let mut bank = Vec::with_capacity(macros::BANK_SIZE);
-                for page in 0..8 { bank.extend(w.read(wcmd::GET_MACRO, page, 512)?); }
-                return Ok(bank);
-            }
+            return self.read_macro_pages(&mut |_| {});
         }
         match &self.t {
             Transport::Wired { .. } => self.read_raw(block.wired(), sub, len),
@@ -293,17 +344,7 @@ impl Keyboard {
     pub fn write_block(&self, block: Block, sub: u8, data: &[u8]) -> Result<()> {
         if block == Block::Macro {
             if sub != 0 { return Err(Error::InvalidArgument("macro bank sub-index must be zero")); }
-            if data.len() != macros::BANK_SIZE { return Err(Error::InvalidArgument("macro bank must be 4096 bytes")); }
-            return match &self.t {
-                Transport::Wired { .. } => self.write_raw(block.wired(), 0, data),
-                Transport::Wireless(w) => {
-                    for (page, bytes) in data.chunks(512).enumerate() {
-                        w.write(wcmd::SET_MACRO, page as u8, bytes, 6)?;
-                        sleep(Duration::from_millis(100));
-                    }
-                    Ok(())
-                }
-            };
+            return self.write_macro_pages(data, &mut |_| {});
         }
         let cmd = match &self.t {
             Transport::Wired { .. } => block.wired(),
@@ -437,36 +478,44 @@ impl Keyboard {
         macros::MacroBank::decode(&self.read_block(Block::Macro, 0, macros::BANK_SIZE)?)
     }
 
-    /// Replace the shared bank, preserving slot numbering. Back up first:
-    /// every layer referencing an overwritten slot will use its new contents.
-    /// Checks dangling references before writing. Returns true only when a
-    /// complete read-back matched (USB or experimental tagged receiver pages).
-    /// A failed upload may leave a partially written bank. No keys are assigned.
-    pub fn replace_macro_bank(&self, bank: &macros::MacroBank) -> Result<bool> {
-        if bank.macros.is_empty() { return Err(Error::InvalidArgument("refusing empty macro bank upload")); }
-        self.replace_macro_bank_inner(bank)
-    }
-
-    /// Explicitly clear the bank. Refuses while ANY layer still references a macro.
-    /// Back up with `macro_bank` first. A failed write is not atomic.
-    pub fn clear_macro_bank(&self) -> Result<bool> {
-        self.replace_macro_bank_inner(&macros::MacroBank::default())
-    }
-
-    fn replace_macro_bank_inner(&self, bank: &macros::MacroBank) -> Result<bool> {
+    /// Write the whole shared bank, as the vendor app does
+    /// (`G5KB_ApplySetting` → `W3632_WriteMacroData`): encode and write it in
+    /// eight 512-byte units. Every packet is acknowledged and retried by the
+    /// transport, so there is no extra read-back, and nothing is read first
+    /// because the bank is overwritten. An empty `bank` clears it.
+    ///
+    /// Key bindings are not checked or changed. Slot numbers are shared by all
+    /// layers: a key bound to slot `n` plays whatever is now in slot `n`, and a
+    /// key bound past the end of the bank does nothing. Not atomic: a failed
+    /// write may leave the bank partially written; saving again fixes it.
+    ///
+    /// `on_progress` receives a non-decreasing percentage ending at 100 on
+    /// success. Over 2.4G this takes about 10 s.
+    pub fn save_macro_bank(
+        &self,
+        bank: &macros::MacroBank,
+        on_progress: &mut dyn FnMut(SaveProgress),
+    ) -> Result<()> {
         let bytes = bank.encode()?;
-        for layer in 0..LAYERS {
-            let matrix = self.key_matrix(layer)?;
-            for entry in matrix.0 {
-                let b = entry.to_le_bytes();
-                if b[0] == 3 && b[3] as usize >= bank.macros.len() {
-                    return Err(Error::InvalidArgument("existing layer references a macro slot missing from replacement bank"));
-                }
-            }
+        let mut r = progress::Reporter::new(on_progress);
+        r.report(0.0);
+        self.write_macro_pages(&bytes, &mut |f| r.report(f))?;
+        r.report(1.0);
+        Ok(())
+    }
+
+    /// `save_macro_bank` without progress. Refuses an empty bank so a caller
+    /// can't clear it by accident; use `clear_macro_bank` for that.
+    pub fn replace_macro_bank(&self, bank: &macros::MacroBank) -> Result<()> {
+        if bank.macros.is_empty() {
+            return Err(Error::InvalidArgument("refusing empty macro bank; use clear_macro_bank"));
         }
-        self.write_block(Block::Macro, 0, &bytes)?;
-        if self.read_block(Block::Macro, 0, macros::BANK_SIZE)? != bytes { return Err(Error::BadResponse); }
-        Ok(true)
+        self.save_macro_bank(bank, &mut |_| {})
+    }
+
+    /// Write an empty bank.
+    pub fn clear_macro_bank(&self) -> Result<()> {
+        self.save_macro_bank(&macros::MacroBank::default(), &mut |_| {})
     }
 
     // ---- device options ---------------------------------------------------
