@@ -15,16 +15,16 @@ pub enum ControllerAction {
     WindowsKeyLock = 0x01000007,
     /// Destructive. Factory shortcut: hold Fn + Space for three seconds.
     FactoryReset = 0x04000007,
-    BacklightEffect = 0x0000000a,
-    BacklightColor = 0x0002000a,
+    BacklightEffect = 0x00000008,
+    BacklightColor = 0x00000208,
     LightingPowerSaving = 0x0a000007,
     KeyboardLighting = 0x0b000007,
-    BacklightBrightnessUp = 0x0001030a,
-    BacklightBrightnessDown = 0x0002030a,
-    BacklightSpeedDown = 0x0002040a,
-    BacklightSpeedUp = 0x0001040a,
-    LightBarMode = 0x0100000a,
-    LightBarColor = 0x0102000a,
+    BacklightBrightnessUp = 0x00010308,
+    BacklightBrightnessDown = 0x00020308,
+    BacklightSpeedDown = 0x00020408,
+    BacklightSpeedUp = 0x00010408,
+    LightBarMode = 0x01000008,
+    LightBarColor = 0x01000208,
 }
 
 impl ControllerAction {
@@ -120,10 +120,10 @@ pub const APPLICATION_SWITCH: KeyAction = KeyAction::Key {
     usage: 0x2b,
     usage2: 0,
 };
-/// Vendor default is LWin alone; the manual calls it Input method (OS-dependent).
+/// Vendor default is Win + Space (read from hardware); the manual calls it Input method.
 pub const INPUT_METHOD: KeyAction = KeyAction::Key {
     modifiers: 8,
-    usage: 0,
+    usage: 0x2c,
     usage2: 0,
 };
 
@@ -160,8 +160,8 @@ mod tests {
     fn controller_fixtures_roundtrip() {
         let words = [
             0x05000007, 0x06000007, 0x07000007, 0x08000007, 0x11000007, 0x01000007, 0x04000007,
-            0x0000000a, 0x0002000a, 0x0a000007, 0x0b000007, 0x0001030a, 0x0002030a, 0x0002040a,
-            0x0001040a, 0x0100000a, 0x0102000a,
+            0x00000008, 0x00000208, 0x0a000007, 0x0b000007, 0x00010308, 0x00020308, 0x00020408,
+            0x00010408, 0x01000008, 0x01000208,
         ];
         for (action, word) in ControllerAction::ALL.into_iter().zip(words) {
             assert_eq!(action.encode(), word);
@@ -181,7 +181,7 @@ mod tests {
         assert_eq!(factory_fn1_action("F3"), Some(DISPLAY_TASK_SWITCH));
         assert_eq!(DISPLAY_TASK_SWITCH.encode(), 0x2b000800);
         assert_eq!(APPLICATION_SWITCH.encode(), 0x2b000400);
-        assert_eq!(INPUT_METHOD.encode(), 0x00000800);
+        assert_eq!(INPUT_METHOD.encode(), 0x2c000800);
         assert_eq!(factory_fn1_action("5"), None);
         assert!(ControllerAction::Receiver24G.is_sensitive());
         assert!(ControllerAction::FactoryReset.is_sensitive());
