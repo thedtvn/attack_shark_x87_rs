@@ -153,6 +153,21 @@ assert_eq!(Key::Space.row(), 5);
   (`src/rs_macro.rs`) that generates `name()`, `index()`, `from_name()`,
   `from_index()`, `ALL` and `COUNT`. A duplicated index is a compile error.
 
+### Key positions
+
+Each key has its rectangle from the vendor's `KB.ini`, in the pixel space of
+the vendor image (`IMAGE_WIDTH` × `IMAGE_HEIGHT` = 669 × 259):
+
+```rust
+use attack_shark_x87::layout::{Key, IMAGE_WIDTH, IMAGE_HEIGHT};
+
+let r = Key::Esc.rect();                 // Rect { x1: 18, y1: 20, x2: 51, y2: 53 }
+let wide = Key::Space.rect().width();    // key widths, e.g. for drawing
+let (x, y, w, h) = r.scaled(1338.0, 518.0); // fit to any drawing size
+let clicked = Key::at(30, 40);           // hit-test a point -> Some(Key::Esc)
+let next = Key::F4.right();              // Some(Key::F5); also left()
+```
+
 ## Async
 
 `KeyboardAsync` is an async-friendly handle with the same methods as

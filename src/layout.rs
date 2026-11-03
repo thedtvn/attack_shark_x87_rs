@@ -323,6 +323,178 @@ impl Key {
     }
 }
 
+// ---- geometry -----------------------------------------------------------------
+
+/// Width of the vendor keyboard image (`Dev/kb/keyimg.png`) in pixels.
+/// [`Key::rect`] coordinates use this image's pixel space.
+pub const IMAGE_WIDTH: u16 = 669;
+/// Height of the vendor keyboard image in pixels.
+pub const IMAGE_HEIGHT: u16 = 259;
+
+/// A key's rectangle in the vendor image's pixel space, from `KB.ini`.
+/// `x1, y1` is the top-left corner; `x2, y2` is the bottom-right (exclusive).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Rect {
+    pub x1: u16,
+    pub y1: u16,
+    pub x2: u16,
+    pub y2: u16,
+}
+
+impl Rect {
+    pub const fn new(x1: u16, y1: u16, x2: u16, y2: u16) -> Self {
+        Self { x1, y1, x2, y2 }
+    }
+
+    pub const fn width(self) -> u16 {
+        self.x2 - self.x1
+    }
+
+    pub const fn height(self) -> u16 {
+        self.y2 - self.y1
+    }
+
+    /// Centre point `(x, y)`.
+    pub fn center(self) -> (f32, f32) {
+        ((self.x1 + self.x2) as f32 / 2.0, (self.y1 + self.y2) as f32 / 2.0)
+    }
+
+    /// Whether the point `(x, y)` is inside the rectangle (for hit-testing).
+    pub const fn contains(self, x: u16, y: u16) -> bool {
+        x >= self.x1 && x < self.x2 && y >= self.y1 && y < self.y2
+    }
+
+    /// The rectangle scaled to a drawing area of `width × height`, as
+    /// `(x, y, w, h)`, keeping the image's proportions per axis.
+    pub fn scaled(self, width: f32, height: f32) -> (f32, f32, f32, f32) {
+        let sx = width / IMAGE_WIDTH as f32;
+        let sy = height / IMAGE_HEIGHT as f32;
+        (
+            self.x1 as f32 * sx,
+            self.y1 as f32 * sy,
+            self.width() as f32 * sx,
+            self.height() as f32 * sy,
+        )
+    }
+}
+
+impl Key {
+    /// The key's rectangle in the vendor image (from `KB.ini`), for drawing a
+    /// keyboard, hit-testing clicks, or measuring key widths.
+    pub const fn rect(self) -> Rect {
+        match self {
+            Key::Esc          => Rect::new( 18,  20,  51,  53),
+            Key::F1           => Rect::new( 89,  20, 122,  53),
+            Key::F2           => Rect::new(123,  20, 156,  53),
+            Key::F3           => Rect::new(157,  20, 190,  53),
+            Key::F4           => Rect::new(191,  20, 224,  53),
+            Key::F5           => Rect::new(244,  20, 277,  53),
+            Key::F6           => Rect::new(278,  20, 311,  53),
+            Key::F7           => Rect::new(313,  20, 346,  53),
+            Key::F8           => Rect::new(348,  20, 381,  53),
+            Key::F9           => Rect::new(401,  20, 434,  53),
+            Key::F10          => Rect::new(435,  20, 468,  53),
+            Key::F11          => Rect::new(469,  20, 502,  53),
+            Key::F12          => Rect::new(503,  20, 536,  53),
+            Key::PrtSc        => Rect::new(548,  20, 581,  53),
+            Key::ScrLock      => Rect::new(582,  20, 615,  53),
+            Key::Pause        => Rect::new(617,  20, 650,  53),
+            Key::Grave        => Rect::new( 18,  67,  51, 100),
+            Key::Digit1       => Rect::new( 53,  67,  86, 100),
+            Key::Digit2       => Rect::new( 88,  67, 121, 100),
+            Key::Digit3       => Rect::new(122,  67, 155, 100),
+            Key::Digit4       => Rect::new(156,  67, 189, 100),
+            Key::Digit5       => Rect::new(190,  67, 223, 100),
+            Key::Digit6       => Rect::new(225,  67, 258, 100),
+            Key::Digit7       => Rect::new(259,  67, 292, 100),
+            Key::Digit8       => Rect::new(294,  67, 327, 100),
+            Key::Digit9       => Rect::new(329,  67, 362, 100),
+            Key::Digit0       => Rect::new(363,  67, 396, 100),
+            Key::Minus        => Rect::new(398,  67, 431, 100),
+            Key::Equal        => Rect::new(433,  67, 466, 100),
+            Key::Backspace    => Rect::new(468,  67, 537, 100),
+            Key::Insert       => Rect::new(548,  67, 581, 100),
+            Key::Home         => Rect::new(582,  67, 615, 100),
+            Key::PgUp         => Rect::new(617,  67, 650, 100),
+            Key::Tab          => Rect::new( 18, 102,  68, 135),
+            Key::Q            => Rect::new( 71, 102, 104, 135),
+            Key::W            => Rect::new(105, 102, 138, 135),
+            Key::E            => Rect::new(139, 102, 172, 135),
+            Key::R            => Rect::new(174, 102, 207, 135),
+            Key::T            => Rect::new(209, 102, 242, 135),
+            Key::Y            => Rect::new(244, 102, 277, 135),
+            Key::U            => Rect::new(278, 102, 311, 135),
+            Key::I            => Rect::new(313, 102, 346, 135),
+            Key::O            => Rect::new(348, 102, 381, 135),
+            Key::P            => Rect::new(383, 102, 416, 135),
+            Key::BracketLeft  => Rect::new(418, 102, 451, 135),
+            Key::BracketRight => Rect::new(453, 102, 486, 135),
+            Key::Backslash    => Rect::new(488, 102, 536, 135),
+            Key::Delete       => Rect::new(548, 102, 581, 135),
+            Key::End          => Rect::new(582, 102, 615, 135),
+            Key::PgDn         => Rect::new(617, 102, 650, 135),
+            Key::CapsLock     => Rect::new( 18, 137,  77, 170),
+            Key::A            => Rect::new( 79, 136, 112, 169),
+            Key::S            => Rect::new(114, 136, 147, 169),
+            Key::D            => Rect::new(149, 136, 182, 169),
+            Key::F            => Rect::new(183, 136, 216, 169),
+            Key::G            => Rect::new(217, 136, 250, 169),
+            Key::H            => Rect::new(252, 136, 285, 169),
+            Key::J            => Rect::new(287, 136, 320, 169),
+            Key::K            => Rect::new(322, 136, 355, 169),
+            Key::L            => Rect::new(356, 136, 389, 169),
+            Key::Semicolon    => Rect::new(391, 136, 424, 169),
+            Key::Quote        => Rect::new(426, 136, 459, 169),
+            Key::Enter        => Rect::new(461, 137, 537, 170),
+            Key::LShift       => Rect::new( 18, 172,  95, 205),
+            Key::Z            => Rect::new( 97, 171, 130, 204),
+            Key::X            => Rect::new(131, 171, 164, 204),
+            Key::C            => Rect::new(166, 171, 199, 204),
+            Key::V            => Rect::new(201, 171, 234, 204),
+            Key::B            => Rect::new(235, 171, 268, 204),
+            Key::N            => Rect::new(270, 171, 303, 204),
+            Key::M            => Rect::new(305, 171, 338, 204),
+            Key::Comma        => Rect::new(340, 171, 373, 204),
+            Key::Period       => Rect::new(374, 171, 407, 204),
+            Key::Slash        => Rect::new(409, 171, 442, 204),
+            Key::RShift       => Rect::new(443, 171, 537, 204),
+            Key::Up           => Rect::new(583, 172, 616, 205),
+            Key::LCtrl        => Rect::new( 18, 207,  60, 240),
+            Key::LWin         => Rect::new( 62, 207, 104, 240),
+            Key::LAlt         => Rect::new(105, 207, 147, 240),
+            Key::Space        => Rect::new(149, 206, 363, 239),
+            Key::RAlt         => Rect::new(365, 206, 407, 239),
+            Key::Fn           => Rect::new(408, 206, 450, 239),
+            Key::App          => Rect::new(452, 206, 494, 239),
+            Key::RCtrl        => Rect::new(495, 206, 537, 239),
+            Key::Left         => Rect::new(548, 206, 581, 239),
+            Key::Down         => Rect::new(583, 206, 616, 239),
+            Key::Right        => Rect::new(617, 206, 650, 239),
+        }
+    }
+
+    /// The key whose rectangle contains `(x, y)` in image pixels, if any.
+    pub fn at(x: u16, y: u16) -> Option<Key> {
+        Key::ALL.into_iter().find(|k| k.rect().contains(x, y))
+    }
+
+    /// Keys sharing this key's row, left to right; [`Key::left`] and
+    /// [`Key::right`] step along it.
+    fn row_keys(self) -> impl Iterator<Item = Key> {
+        LAYOUT[self.row()].iter().flat_map(|c| c.iter().copied())
+    }
+
+    /// The key immediately to the left in the same physical row, if any.
+    pub fn left(self) -> Option<Key> {
+        self.row_keys().filter(|k| k.rect().x2 <= self.rect().x1).max_by_key(|k| k.rect().x2)
+    }
+
+    /// The key immediately to the right in the same physical row, if any.
+    pub fn right(self) -> Option<Key> {
+        self.row_keys().filter(|k| k.rect().x1 >= self.rect().x2).min_by_key(|k| k.rect().x1)
+    }
+}
+
 impl std::fmt::Display for Key {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.name())
@@ -480,5 +652,55 @@ mod tests {
         assert_eq!(Key::Space.row(), 5);
         assert!(KeyGroup::Navigation.contains(Key::PrtSc));
         assert!(!KeyGroup::Main.contains(Key::Up));
+    }
+
+    #[test]
+    fn rects_are_valid_and_do_not_overlap() {
+        for k in Key::ALL {
+            let r = k.rect();
+            assert!(r.x1 < r.x2 && r.y1 < r.y2, "{k:?}");
+            assert!(r.x2 <= IMAGE_WIDTH && r.y2 <= IMAGE_HEIGHT, "{k:?}");
+            let (cx, cy) = r.center();
+            assert_eq!(Key::at(cx as u16, cy as u16), Some(k), "{k:?} centre hit-test");
+        }
+        for (i, a) in Key::ALL.iter().enumerate() {
+            for b in &Key::ALL[i + 1..] {
+                let (ra, rb) = (a.rect(), b.rect());
+                let overlap = ra.x1 < rb.x2 && rb.x1 < ra.x2 && ra.y1 < rb.y2 && rb.y1 < ra.y2;
+                assert!(!overlap, "{a:?} overlaps {b:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn geometry_matches_layout_rows_and_order() {
+        for (r, row) in LAYOUT.iter().enumerate() {
+            let keys: Vec<Key> = row.iter().flat_map(|c| c.iter().copied()).collect();
+            // Left to right inside each row, and clusters separated by a gap.
+            for w in keys.windows(2) {
+                assert!(w[0].rect().x2 <= w[1].rect().x1, "row {r}: {:?} then {:?}", w[0], w[1]);
+            }
+            for c in row.windows(2) {
+                let gap = c[1][0].rect().x1 - c[0].last().unwrap().rect().x2;
+                assert!(gap > 0, "row {r}: clusters touch");
+            }
+        }
+    }
+
+    #[test]
+    fn known_sizes_and_neighbours() {
+        assert_eq!(Key::Esc.rect(), Rect::new(18, 20, 51, 53));
+        assert_eq!(Key::Q.rect().width(), 33);
+        assert!(Key::Space.rect().width() > 5 * Key::Q.rect().width());
+        assert!(Key::Backspace.rect().width() > Key::Digit0.rect().width());
+        assert_eq!(Key::Esc.left(), None);
+        assert_eq!(Key::Esc.right(), Some(Key::F1));
+        assert_eq!(Key::F4.right(), Some(Key::F5));
+        assert_eq!(Key::A.left(), Some(Key::CapsLock));
+        assert_eq!(Key::Enter.right(), None);
+        assert_eq!(Key::Down.left(), Some(Key::Left));
+        assert_eq!(Key::at(0, 0), None);
+        let (x, y, w, h) = Key::Esc.rect().scaled(IMAGE_WIDTH as f32 * 2.0, IMAGE_HEIGHT as f32 * 2.0);
+        assert_eq!((x, y, w, h), (36.0, 40.0, 66.0, 66.0));
     }
 }

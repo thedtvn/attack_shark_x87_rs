@@ -43,3 +43,15 @@ fn keys_and_layout_example() {
     assert_eq!(KeyGroup::F1F4.keys().collect::<Vec<_>>(), [Key::F1, Key::F2, Key::F3, Key::F4]);
     assert_eq!(KeyGroup::CLUSTERS.len(), 14);
 }
+
+#[test]
+fn key_positions_example() {
+    use attack_shark_x87::layout::Rect;
+    let r = Key::Esc.rect();
+    assert_eq!(r, Rect::new(18, 20, 51, 53));
+    assert!(Key::Space.rect().width() > r.width());
+    let (_x, _y, w, _h) = r.scaled(1338.0, 518.0);
+    assert_eq!(w, 66.0);
+    assert_eq!(Key::at(30, 40), Some(Key::Esc));
+    assert_eq!(Key::F4.right(), Some(Key::F5));
+}
