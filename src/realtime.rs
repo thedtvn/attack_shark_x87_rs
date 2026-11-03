@@ -50,7 +50,7 @@ impl Frame {
         Self::default()
     }
 
-    /// Set one LED (index from [`crate::layout::KEYS`]). Black removes it.
+    /// Set one LED by index ([`crate::Key::index`]). Black removes it.
     pub fn set(&mut self, led: u8, c: Rgb) -> &mut Self {
         assert!((led as usize) < LED_SLOTS, "LED index out of range");
         if c == Rgb(0, 0, 0) {
@@ -61,16 +61,15 @@ impl Frame {
         self
     }
 
-    /// Set a key by name (see [`crate::layout::key_index`]).
-    pub fn set_key(&mut self, name: &str, c: Rgb) -> Result<&mut Self> {
-        let i = crate::layout::key_index(name).ok_or(Error::InvalidArgument("unknown key name"))?;
-        Ok(self.set(i, c))
+    /// Set one key. Black removes it.
+    pub fn set_key(&mut self, key: crate::Key, c: Rgb) -> &mut Self {
+        self.set(key.index(), c)
     }
 
     /// Light every key with one colour.
     pub fn fill(&mut self, c: Rgb) -> &mut Self {
-        for &(_, i) in crate::layout::KEYS {
-            self.set(i, c);
+        for key in crate::Key::ALL {
+            self.set(key.index(), c);
         }
         self
     }
@@ -173,8 +172,8 @@ mod tests {
     #[test]
     fn too_many_colours() {
         let mut f = Frame::new();
-        for (n, &(_, i)) in crate::layout::KEYS.iter().enumerate() {
-            f.set(i, Rgb(n as u8 + 1, 0, 0));
+        for (n, key) in crate::Key::ALL.into_iter().enumerate() {
+            f.set_key(key, Rgb(n as u8 + 1, 0, 0));
         }
         assert!(f.encode().is_err());
         assert!(f.encode_lossy().len() <= MAX_FRAME_LEN);
@@ -184,7 +183,7 @@ mod tests {
     fn full_board_one_colour_fits() {
         let mut f = Frame::new();
         f.fill(Rgb(1, 2, 3));
-        assert_eq!(f.encode().unwrap().len(), 4 + crate::layout::KEYS.len());
+        assert_eq!(f.encode().unwrap().len(), 4 + crate::Key::ALL.len());
     }
 
     #[test]

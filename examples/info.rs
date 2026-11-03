@@ -1,4 +1,4 @@
-use attack_shark_x87::{layout, Keyboard};
+use attack_shark_x87::{Key, Keyboard};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let kb = Keyboard::open()?;
@@ -16,8 +16,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let m = kb.key_matrix(0)?;
-    for &(name, idx) in layout::KEYS.iter().take(10) {
-        println!("  {name:>6} -> {:?}", m.get(idx));
+    for key in Key::ALL.into_iter().take(10) {
+        println!("  {:>6} -> {:?}", key.name(), m.get(key.index()));
     }
     Ok(())
 }

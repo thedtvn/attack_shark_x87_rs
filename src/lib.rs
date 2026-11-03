@@ -28,6 +28,7 @@ use std::time::Duration;
 use hidapi::{HidApi, HidDevice};
 
 pub use asynchronous::KeyboardAsync;
+pub use layout::Key;
 pub use controller::ControllerAction;
 pub use progress::SaveProgress;
 pub use macros::{Macro, MacroAction, MacroBank, MacroEvent, MacroRepeat};
@@ -467,12 +468,11 @@ impl Keyboard {
         self.write_block(Block::KeyMatrix, layer, &b)
     }
 
-    /// Remap one key. `key` is a name from [`layout::KEYS`].
-    pub fn remap_key(&self, layer: u8, key: &str, action: KeyAction) -> Result<()> {
+    /// Remap one key on `layer` (0 = default, 1 = FN1, 2 = FN2, 3 = Tap).
+    pub fn remap_key(&self, layer: u8, key: Key, action: KeyAction) -> Result<()> {
         action.try_encode()?;
-        let idx = layout::key_index(key).ok_or(Error::InvalidArgument("unknown key name"))?;
         let mut m = self.key_matrix(layer)?;
-        m.set(idx, action);
+        m.set(key.index(), action);
         self.set_key_matrix(layer, &m)
     }
 

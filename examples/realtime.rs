@@ -2,7 +2,7 @@
 //!   cargo run --example realtime
 use std::time::{Duration, Instant};
 
-use attack_shark_x87::{layout, realtime::quantize, Frame, Keyboard, Rgb};
+use attack_shark_x87::{realtime::quantize, Frame, Key, Keyboard, Rgb};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let kb = Keyboard::open()?;
@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     while t0.elapsed() < Duration::from_secs(8) {
         let pos = (t0.elapsed().as_secs_f32() * 0.5).fract();
         let mut f = Frame::new();
-        for &(_, led) in layout::KEYS {
+        for led in Key::ALL.map(Key::index) {
             let d = (x(led) - pos).abs();
             let v = (1.0 - d * 4.0).max(0.0);
             if v > 0.0 {

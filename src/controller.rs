@@ -2,7 +2,7 @@
 //! manual and G5KB_ConvertKeyCode. Creating/encoding a binding does not execute
 //! it. Remapped-key hold behavior and FN2 activation need hardware validation.
 //! Host media controls remain [`crate::KeyAction::Consumer`], not controllers.
-use crate::KeyAction;
+use crate::{Key, KeyAction};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
@@ -85,25 +85,26 @@ impl ControllerAction {
             Self::LightBarColor => "Light-bar colour",
         }
     }
-    pub fn factory_key(self) -> &'static str {
+    /// The key this action is on in the factory FN1 layer (Fn + this key).
+    pub fn factory_key(self) -> Key {
         match self {
-            Self::Bluetooth1 => "1",
-            Self::Bluetooth2 => "2",
-            Self::Bluetooth3 => "3",
-            Self::Receiver24G => "4",
-            Self::BatteryLevel => "Backspace",
-            Self::WindowsKeyLock => "LWin",
-            Self::FactoryReset => "Space",
-            Self::BacklightEffect => "\\",
-            Self::BacklightColor => "Enter",
-            Self::LightingPowerSaving => "G",
-            Self::KeyboardLighting => "X",
-            Self::BacklightBrightnessUp => "Up",
-            Self::BacklightBrightnessDown => "Down",
-            Self::BacklightSpeedDown => "Left",
-            Self::BacklightSpeedUp => "Right",
-            Self::LightBarMode => "CapsLock",
-            Self::LightBarColor => "A",
+            Self::Bluetooth1 => Key::Digit1,
+            Self::Bluetooth2 => Key::Digit2,
+            Self::Bluetooth3 => Key::Digit3,
+            Self::Receiver24G => Key::Digit4,
+            Self::BatteryLevel => Key::Backspace,
+            Self::WindowsKeyLock => Key::LWin,
+            Self::FactoryReset => Key::Space,
+            Self::BacklightEffect => Key::Backslash,
+            Self::BacklightColor => Key::Enter,
+            Self::LightingPowerSaving => Key::G,
+            Self::KeyboardLighting => Key::X,
+            Self::BacklightBrightnessUp => Key::Up,
+            Self::BacklightBrightnessDown => Key::Down,
+            Self::BacklightSpeedDown => Key::Left,
+            Self::BacklightSpeedUp => Key::Right,
+            Self::LightBarMode => Key::CapsLock,
+            Self::LightBarColor => Key::A,
         }
     }
 }
@@ -129,26 +130,23 @@ pub const INPUT_METHOD: KeyAction = KeyAction::Key {
 
 /// Factory FN1 mapping only. FN2/Tap defaults are empty in the supplied KB.ini.
 /// None means there is no explicit factory layer action, not necessarily disabled.
-pub fn factory_fn1_action(key: &str) -> Option<KeyAction> {
-    if let Some(action) = ControllerAction::ALL
-        .into_iter()
-        .find(|a| a.factory_key().eq_ignore_ascii_case(key))
-    {
+pub fn factory_fn1_action(key: Key) -> Option<KeyAction> {
+    if let Some(action) = ControllerAction::ALL.into_iter().find(|a| a.factory_key() == key) {
         return Some(KeyAction::Controller(action));
     }
-    Some(match key.to_ascii_uppercase().as_str() {
-        "F1" => KeyAction::Consumer(0x70),
-        "F2" => KeyAction::Consumer(0x6f),
-        "F3" => DISPLAY_TASK_SWITCH,
-        "F4" => APPLICATION_SWITCH,
-        "F5" => KeyAction::Consumer(0x221),
-        "F6" => INPUT_METHOD,
-        "F7" => KeyAction::Consumer(0xb6),
-        "F8" => KeyAction::Consumer(0xcd),
-        "F9" => KeyAction::Consumer(0xb5),
-        "F10" => KeyAction::Consumer(0xe2),
-        "F11" => KeyAction::Consumer(0xea),
-        "F12" => KeyAction::Consumer(0xe9),
+    Some(match key {
+        Key::F1 => KeyAction::Consumer(0x70),
+        Key::F2 => KeyAction::Consumer(0x6f),
+        Key::F3 => DISPLAY_TASK_SWITCH,
+        Key::F4 => APPLICATION_SWITCH,
+        Key::F5 => KeyAction::Consumer(0x221),
+        Key::F6 => INPUT_METHOD,
+        Key::F7 => KeyAction::Consumer(0xb6),
+        Key::F8 => KeyAction::Consumer(0xcd),
+        Key::F9 => KeyAction::Consumer(0xb5),
+        Key::F10 => KeyAction::Consumer(0xe2),
+        Key::F11 => KeyAction::Consumer(0xea),
+        Key::F12 => KeyAction::Consumer(0xe9),
         _ => return None,
     })
 }
@@ -177,12 +175,12 @@ mod tests {
     }
     #[test]
     fn host_controls_remain_keyboard_or_media() {
-        assert_eq!(factory_fn1_action("F11"), Some(KeyAction::Consumer(0xea)));
-        assert_eq!(factory_fn1_action("F3"), Some(DISPLAY_TASK_SWITCH));
+        assert_eq!(factory_fn1_action(Key::F11), Some(KeyAction::Consumer(0xea)));
+        assert_eq!(factory_fn1_action(Key::F3), Some(DISPLAY_TASK_SWITCH));
         assert_eq!(DISPLAY_TASK_SWITCH.encode(), 0x2b000800);
         assert_eq!(APPLICATION_SWITCH.encode(), 0x2b000400);
         assert_eq!(INPUT_METHOD.encode(), 0x2c000800);
-        assert_eq!(factory_fn1_action("5"), None);
+        assert_eq!(factory_fn1_action(Key::Digit5), None);
         assert!(ControllerAction::Receiver24G.is_sensitive());
         assert!(ControllerAction::FactoryReset.is_sensitive());
         assert!(!ControllerAction::LightBarColor.is_sensitive());

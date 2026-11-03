@@ -42,7 +42,7 @@ for `258a:010c` and `3554:fa09`, or root access.
 ## Usage
 
 ```rust
-use attack_shark_x87::{Effect, EffectSettings, Keyboard, KeyAction, Frame, Rgb, PerKeyColors, layout};
+use attack_shark_x87::{Effect, EffectSettings, Keyboard, Key, KeyAction, Frame, Rgb, PerKeyColors};
 
 fn main() -> Result<(), attack_shark_x87::Error> {
     // USB cable first, falls back to the 2.4G receiver.
@@ -55,14 +55,14 @@ fn main() -> Result<(), attack_shark_x87::Error> {
     // Per-key colours
     let mut c = PerKeyColors::default();
     c.fill(Rgb(0, 0, 60));
-    for k in ["W", "A", "S", "D"] {
-        c.set(layout::key_index(k).unwrap(), Rgb(255, 0, 0));
+    for k in [Key::W, Key::A, Key::S, Key::D] {
+        c.set_key(k, Rgb(255, 0, 0));
     }
     kb.set_per_key_colors(0, &c)?;
     kb.set_effect(Effect::Custom, EffectSettings { brightness: 4, speed: 0, color: 0 })?;
 
     // Remap CapsLock to Esc on layer 1
-    kb.remap_key(0, "CapsLock", KeyAction::Key { modifiers: 0, usage: 0x29, usage2: 0 })?;
+    kb.remap_key(0, Key::CapsLock, KeyAction::Key { modifiers: 0, usage: 0x29, usage2: 0 })?;
 
     // Options
     kb.set_debounce(2)?;
@@ -71,7 +71,7 @@ fn main() -> Result<(), attack_shark_x87::Error> {
 
     // Realtime frame (what the vendor "music" mode streams)
     let mut f = Frame::new();
-    f.set_key("Space", Rgb(0, 255, 0))?;
+    f.set_key(Key::Space, Rgb(0, 255, 0));
     kb.send_frame(&f)?;
     kb.stop_realtime()?;
     Ok(())
@@ -148,13 +148,13 @@ let fw = kb.with(|k| k.firmware_version()).await?;
 ## Controller bindings
 
 ```rust,no_run
-use attack_shark_x87::{Keyboard, KeyAction, ControllerAction};
+use attack_shark_x87::{Keyboard, Key, KeyAction, ControllerAction};
 # fn example() -> Result<(), attack_shark_x87::Error> {
 let kb = Keyboard::open()?;
 // Explicit assignments only. These examples are not executed automatically.
-kb.remap_key(0, "App", KeyAction::Fn2)?;
-kb.remap_key(1, "4", KeyAction::Controller(ControllerAction::Receiver24G))?;
-kb.remap_key(1, "CapsLock", KeyAction::Controller(ControllerAction::LightBarMode))?;
+kb.remap_key(0, Key::App, KeyAction::Fn2)?;
+kb.remap_key(1, Key::Digit4, KeyAction::Controller(ControllerAction::Receiver24G))?;
+kb.remap_key(1, Key::CapsLock, KeyAction::Controller(ControllerAction::LightBarMode))?;
 # Ok(()) }
 ```
 
@@ -178,7 +178,7 @@ byte fixtures, **not hardware playback verification**. Until-released and
 until-any-key mode semantics remain experimental.
 
 ```rust,no_run
-use attack_shark_x87::{Keyboard, KeyAction};
+use attack_shark_x87::{Keyboard, Key, KeyAction};
 use attack_shark_x87::macros::{Macro, MacroAction, MacroEvent, MacroBank, MacroRepeat};
 # fn example() -> Result<(), attack_shark_x87::Error> {
 let kb = Keyboard::open()?;
@@ -193,7 +193,7 @@ let bank = MacroBank { macros: vec![Macro {
 kb.save_macro_bank(&bank, Some(&mut |p| println!("saving {}%", p.percent)))?;
 // Or without progress: kb.save_macro_bank(&bank, None)?;
 // Bind a key deliberately; saving the bank never changes key bindings.
-kb.remap_key(0, "F12", KeyAction::Macro { slot: 0, repeat: MacroRepeat::Times(1) })?;
+kb.remap_key(0, Key::F12, KeyAction::Macro { slot: 0, repeat: MacroRepeat::Times(1) })?;
 # Ok(()) }
 ```
 

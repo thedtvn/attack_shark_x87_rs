@@ -279,9 +279,19 @@ impl PerKeyColors {
         Rgb(self.0[i], self.0[p + i], self.0[2 * p + i])
     }
 
+    /// Set one key's colour.
+    pub fn set_key(&mut self, key: crate::Key, c: Rgb) {
+        self.set(key.index(), c);
+    }
+
+    /// One key's colour.
+    pub fn get_key(&self, key: crate::Key) -> Rgb {
+        self.get(key.index())
+    }
+
     pub fn fill(&mut self, c: Rgb) {
-        for &(_, i) in crate::layout::KEYS {
-            self.set(i, c);
+        for key in crate::Key::ALL {
+            self.set(key.index(), c);
         }
     }
 }

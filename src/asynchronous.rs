@@ -33,7 +33,7 @@ use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll, Waker};
 
 use crate::{
-    macros, Connection, Effect, EffectSettings, Error, Frame, KeyAction, KeyMatrix, Keyboard,
+    macros, Connection, Effect, EffectSettings, Error, Frame, Key, KeyAction, KeyMatrix, Keyboard,
     LedConfig, PerKeyColors, Result, Rgb, RgbTable, SaveProgress,
 };
 
@@ -168,9 +168,8 @@ impl KeyboardAsync {
         self.with(move |k| k.set_key_matrix(layer, &m)).await
     }
 
-    pub async fn remap_key(&self, layer: u8, key: impl Into<String>, action: KeyAction) -> Result<()> {
-        let key = key.into();
-        self.with(move |k| k.remap_key(layer, &key, action)).await
+    pub async fn remap_key(&self, layer: u8, key: Key, action: KeyAction) -> Result<()> {
+        self.with(move |k| k.remap_key(layer, key, action)).await
     }
 
     // ---- macros: get / save / clear ---------------------------------------
