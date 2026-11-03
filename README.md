@@ -116,6 +116,35 @@ Use at your own risk.
 
 [MIT](LICENSE) © 2026 The DT
 
+## Async
+
+`KeyboardAsync` is an async-friendly handle with the same methods as
+`Keyboard`, returning futures. It owns the keyboard on one worker thread, so
+slow calls (a macro save over 2.4G takes ~10 s) never block your executor.
+
+```rust,no_run
+# async fn example() -> Result<(), attack_shark_x87::Error> {
+use attack_shark_x87::{KeyboardAsync, Effect, EffectSettings};
+let kb = KeyboardAsync::open().await?;
+kb.set_effect(Effect::Respire, EffectSettings { brightness: 4, speed: 2, color: 0 }).await?;
+let bank = kb.macro_bank().await?;
+kb.save_macro_bank(bank, Some(|p: attack_shark_x87::SaveProgress| println!("{}%", p.percent))).await?;
+// Anything else from the blocking API:
+let fw = kb.with(|k| k.firmware_version()).await?;
+# let _ = fw; Ok(()) }
+```
+
+- No async runtime dependency: works with tokio, async-std, smol, or a
+  plain `block_on` (see `examples/async_check.rs`).
+- `Clone + Send + Sync`: share it between tasks. Calls run one at a time in
+  call order (the keyboard can't handle concurrent requests).
+- Wrap an already open keyboard with `KeyboardAsync::from_keyboard(kb)`, or
+  use `KeyboardAsync::spawn(|| Keyboard::open_with(&api))` for a custom opener.
+- The progress callback runs on the worker thread; keep it quick.
+- If the worker thread is gone, calls return `Error::Disconnected`.
+- `cargo run --example async_check` reads lighting, macros and a layer
+  concurrently (read-only).
+
 ## Controller bindings
 
 ```rust,no_run

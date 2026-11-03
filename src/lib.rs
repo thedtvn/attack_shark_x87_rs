@@ -10,6 +10,7 @@
 //! # Ok::<(), attack_shark_x87::Error>(())
 //! ```
 
+pub mod asynchronous;
 pub mod controller;
 pub mod macros;
 pub mod keymap;
@@ -26,6 +27,7 @@ use std::time::Duration;
 
 use hidapi::{HidApi, HidDevice};
 
+pub use asynchronous::KeyboardAsync;
 pub use controller::ControllerAction;
 pub use progress::SaveProgress;
 pub use macros::{Macro, MacroAction, MacroBank, MacroEvent, MacroRepeat};
@@ -69,6 +71,9 @@ pub enum Error {
     Unsupported,
     #[error("invalid argument: {0}")]
     InvalidArgument(&'static str),
+    /// The [`KeyboardAsync`] worker thread has stopped.
+    #[error("keyboard worker thread stopped")]
+    Disconnected,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
