@@ -1,0 +1,21 @@
+[package]
+name = "ask87_ts"
+description = "Node.js bindings for the ATTACK SHARK X87 keyboard"
+# Distributed as an npm package (napi-rs), not on crates.io.
+publish = false
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+attack_shark_x87 = { workspace = true }
+hidapi = "2.6"
+napi = { version = "3", default-features = false, features = ["napi6"] }
+napi-derive = "3"
+
+[build-dependencies]
+napi-build = "2"

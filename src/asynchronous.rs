@@ -116,6 +116,16 @@ impl KeyboardAsync {
         self.with(|k| k.firmware_version()).await
     }
 
+    /// See [`Keyboard::battery`].
+    pub async fn battery(&self) -> Result<Option<crate::Battery>> {
+        self.with(|k| k.battery()).await
+    }
+
+    /// See [`Keyboard::is_linked`].
+    pub async fn is_linked(&self) -> Result<bool> {
+        self.with(|k| k.is_linked()).await
+    }
+
     pub async fn password(&self) -> Result<[u8; 6]> {
         self.with(|k| k.password()).await
     }

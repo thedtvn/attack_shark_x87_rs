@@ -20,6 +20,7 @@ pub mod led;
 pub mod progress;
 pub mod protocol;
 pub mod realtime;
+pub mod watch;
 pub mod wireless;
 mod wireless_read;
 
@@ -37,6 +38,8 @@ pub use keymap::{KeyAction, KeyMatrix};
 pub use led::{Effect, EffectSettings, LedConfig, PerKeyColors, RgbTable};
 pub use protocol::Command;
 pub use realtime::Frame;
+pub use watch::{Event, Watcher};
+pub use wireless::Battery;
 
 use protocol::*;
 use wireless::{cmd as wcmd, Wireless};
@@ -67,6 +70,10 @@ pub enum Error {
     BadResponse,
     #[error("timed out waiting for the keyboard (is it switched on / in 2.4G mode?)")]
     Timeout,
+    /// 2.4G: the receiver is plugged in but the keyboard is asleep or off.
+    /// Press a key to wake it, then retry.
+    #[error("keyboard is asleep (press any key to wake it)")]
+    Asleep,
     #[error("keyboard reported a checksum error")]
     Checksum,
     #[error("not supported over this connection")]
@@ -372,6 +379,31 @@ impl Keyboard {
         Ok(self.hid().get_device_info()?.release_number())
     }
 
+    /// Battery level, or `None` when connected by USB cable (the keyboard
+    /// reports no battery over the cable) or the 2.4G link is down.
+    pub fn battery(&self) -> Result<Option<wireless::Battery>> {
+        match &self.t {
+            Transport::Wired { .. } => Ok(None),
+            Transport::Wireless(w) => wireless::query_battery(&w.dev),
+        }
+    }
+
+    /// Start a [`Watcher`] for connection events (USB cable, 2.4G link, battery).
+    /// Same as [`Watcher::start`]; it keeps running if this keyboard is closed
+    /// or unplugged, until the returned handle is stopped or dropped.
+    pub fn watch(&self, on_event: impl FnMut(Event) + Send + 'static) -> Result<Watcher> {
+        Watcher::start(on_event)
+    }
+
+    /// Whether the keyboard is reachable: always `true` over USB; over 2.4G,
+    /// whether it is linked to the receiver (it is not while asleep or off).
+    pub fn is_linked(&self) -> Result<bool> {
+        match &self.t {
+            Transport::Wired { .. } => Ok(true),
+            Transport::Wireless(w) => wireless::query_link(&w.dev),
+        }
+    }
+
     /// 6 byte identification code (USB only). The vendor tool compares it to
     /// `Psd=3,0,0,0,1,a7` from `KB.ini`.
     pub fn password(&self) -> Result<[u8; 6]> {
@@ -481,9 +513,9 @@ impl Keyboard {
         self.set_key_matrix(layer, &m)
     }
 
-    // ---- onboard macros (experimental) ------------------------------------
+    // ---- onboard macros -------------------------------------------------------
 
-    /// Read USB bank or eight tagged 512-byte receiver pages (experimental).
+    /// Read USB bank or eight tagged 512-byte receiver pages.
     pub fn macro_bank(&self) -> Result<macros::MacroBank> {
         macros::MacroBank::decode(&self.read_block(Block::Macro, 0, macros::BANK_SIZE)?)
     }

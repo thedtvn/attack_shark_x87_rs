@@ -1,0 +1,65 @@
+# Python package `ask87`, built from lib/ask87_py with maturin. Lives at the
+# repo root so `pip install git+https://github.com/thedtvn/attack_shark_x87_rs`
+# works (builds from source; needs a Rust toolchain).
+[build-system]
+requires = ["maturin>=1.7,<2"]
+build-backend = "maturin"
+
+[project]
+name = "ask87"
+description = "Python bindings for the ATTACK SHARK X87 keyboard (USB and 2.4G)"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+dynamic = ["version"]
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Repository = "https://github.com/thedtvn/attack_shark_x87_rs"
+
+[dependency-groups]
+dev = ["maturin>=1.7,<2", "pytest>=8", "ruff>=0.17", "ty>=0.0.96"]
+
+# Rebuild the extension when Rust sources change (`uv run` / `uv sync`).
+[tool.uv]
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "Cargo.toml" },
+    { file = "src/**/*.rs" },
+    { file = "lib/ask87_py/Cargo.toml" },
+    { file = "lib/ask87_py/src/**/*.rs" },
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+src = ["lib/ask87_py/python"]
+include = ["lib/ask87_py/**/*.py", "lib/ask87_py/**/*.pyi"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "ANN"]
+ignore = ["UP007", "UP045"] # keep Optional/Union: runtime support for 3.9
+
+[tool.ruff.lint.per-file-ignores]
+"**/_enums.py" = ["E741"] # key names I and O
+
+[tool.ty.environment]
+python-version = "3.9"
+root = ["lib/ask87_py/python"]
+
+[tool.ty.src]
+include = ["lib/ask87_py/python", "lib/ask87_py/tests"]
+
+[tool.maturin]
+manifest-path = "lib/ask87_py/Cargo.toml"
+python-source = "lib/ask87_py/python"
+module-name = "ask87._native"
+features = ["extension-module"]
+include = [{ path = "lib/ask87_py/python/ask87/py.typed", format = "wheel" }]
+
+[tool.pytest.ini_options]
+testpaths = ["lib/ask87_py/tests"]

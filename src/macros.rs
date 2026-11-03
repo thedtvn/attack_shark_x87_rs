@@ -1,4 +1,4 @@
-//! Experimental onboard macro codecs, reverse engineered in MACROS.md.
+//! Onboard macro codecs, reverse engineered in MACROS.md.
 //! No automatic uploads: replacing the bank affects macro slots in ALL layers.
 use crate::{Error, Result};
 

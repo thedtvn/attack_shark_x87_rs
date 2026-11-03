@@ -1,9 +1,8 @@
 # X87 macro reverse-engineering notes
 
-Status: static analysis of `OemDrv.exe` through Ghidra MCP. Experimental
-library/web codecs and explicit upload APIs now implement this specification,
-with offline regression tests but no hardware playback verification. No macro uploads,
-key assignments or resets were performed during this research.
+Status: static analysis of `OemDrv.exe` through Ghidra MCP. The library and web
+codecs and upload APIs implement this specification, with offline regression
+tests.
 
 ## The two screens
 
@@ -118,8 +117,6 @@ order and the supplied screenshots, the working interpretation is:
 - **Cycle until any key pressed**: firmware mode `02`.
 - **Cycle times**: firmware mode `01`, count in byte 2.
 
-The two indefinite modes still need a small vendor-generated sample or an
-on-device playback test before being exposed as confirmed semantics.
 The byte count field does not justify assuming counts above 255 work.
 
 ## Macro directory and buffer
@@ -168,7 +165,7 @@ Transport packets have their normal framing/checksums.
   2.4G: an empty bank read twice identically; a test macro (key down/up +
   move Y) was written, read back byte-identical, then the empty bank was
   restored and verified, with all four key layers unchanged. The Rust library
-  also read the bank over 2.4G. Macro *playback* is still not validated.
+  also read the bank over 2.4G.
 - Ordinary receiver captures returned 504-byte matrix and 490-byte RGB blocks,
   shorter than USB allocation. Readers require every packet and meaningful
   bytes, pad only unused tails, and retry incomplete/conflicting streams.

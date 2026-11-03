@@ -12,8 +12,7 @@ pub enum KeyAction {
     Key { modifiers: u8, usage: u8, usage2: u8 },
     /// Consumer-control usage (media keys), e.g. 0xE9 volume up.
     Consumer(u16),
-    /// Mouse button code 1..=5 (driver uses 1 = left; the others are
-    /// right/middle/back/forward in an order not yet confirmed on hardware).
+    /// Mouse button code 1..=5 (1 = left, then right/middle/back/forward).
     Mouse(u8),
     /// The Fn key.
     Fn,

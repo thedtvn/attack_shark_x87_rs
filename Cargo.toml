@@ -1,14 +1,38 @@
 [package]
 name = "attack_shark_x87"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
 description = "Userspace driver for the ATTACK SHARK X87 keyboard (USB and 2.4G), reverse engineered from the vendor software"
-license = "MIT"
-repository = "https://github.com/thedtvn/attack_shark_x87_rs"
 readme = "README.md"
 keywords = ["keyboard", "hid", "rgb", "attack-shark", "x87"]
 categories = ["hardware-support"]
+# Keep the crate package to the library; bindings are separate packages.
+exclude = ["lib/", "pyproject.toml", "package.json", "package-lock.json", "*.node"]
 
 [dependencies]
 hidapi = "2.6"
 thiserror = "1"
+
+# Like pydantic/monty: the core crate at the root, language bindings as
+# separate crates under lib/. The root pyproject.toml / package.json build
+# those crates so `pip install git+...` and `npm install github:...` work.
+[workspace]
+resolver = "2"
+members = [".", "lib/ask87_py", "lib/ask87_ts"]
+default-members = ["."]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/thedtvn/attack_shark_x87_rs"
+
+[workspace.dependencies]
+attack_shark_x87 = { path = "." }
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

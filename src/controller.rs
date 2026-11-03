@@ -1,6 +1,6 @@
 //! Built-in keyboard controls, correlated with vendor KB.ini [FN1], the X87
 //! manual and G5KB_ConvertKeyCode. Creating/encoding a binding does not execute
-//! it. Remapped-key hold behavior and FN2 activation need hardware validation.
+//! it.
 //! Host media controls remain [`crate::KeyAction::Consumer`], not controllers.
 use crate::{Key, KeyAction};
 

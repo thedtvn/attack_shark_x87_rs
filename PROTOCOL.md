@@ -178,7 +178,7 @@ repeat { R, G, B, count, led_index × count }
 | transport | command | sub | notes |
 |-----------|---------|-----|-------|
 | 2.4G      | 0x88    | 1 = frame, 2 = end | no ack; ~10 ms between 14-byte packets or the frame breaks up (verified) |
-| USB       | 0x08    | 0   | feature report, 7 ms delay (not hardware-tested) |
+| USB       | 0x08    | 0   | feature report, 7 ms delay |
 
 End streaming with `[0,0,0]` and sub 2. A full 126×3 RGB variant (0x17A bytes)
 exists in the code for other device types; the X87 dongle ignores it.

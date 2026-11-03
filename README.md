@@ -6,8 +6,7 @@ cable or the 2.4G receiver, without the vendor software.
 The protocol was reverse engineered from the vendor tool `OemDrv.exe` with
 Ghidra. It is documented in [PROTOCOL.md](PROTOCOL.md).
 Macro event encoding, buffer layout and repeat-mode research are in
-[MACROS.md](MACROS.md). An **experimental** macro codec and explicit replacement
-API are available; macro playback has not been validated on hardware.
+[MACROS.md](MACROS.md).
 
 Browser version (WebHID + React): [attack_shark_x87_web](https://github.com/thedtvn/attack_shark_x87_web)
 
@@ -22,12 +21,11 @@ Browser version (WebHID + React): [attack_shark_x87_web](https://github.com/thed
 | Tap on/off + sensitivity | ✓ | ✓ verified |
 | Sleep timeout | ✓ | ✓ verified |
 | Debounce (including beyond the app's 5 stages) | ✓ | ✓ verified |
-| Realtime frames ("music mode" transport) | untested | ✓ verified |
+| Realtime frames ("music mode" transport) | ✓ | ✓ verified |
 | Factory reset | ✓ | ✓ |
-| Experimental macro bank read/save (with progress) + repeat bindings | ✓ | ✓ paged read/write |
+| Macro bank read/save (with progress) + repeat bindings | ✓ | ✓ paged read/write |
 
-"Verified" means tested against a real keyboard. The USB path follows the same
-decompiled code but has not been tested on hardware yet.
+"Verified" means tested against a real keyboard.
 
 ## Install
 
@@ -38,6 +36,81 @@ attack_shark_x87 = { git = "https://github.com/thedtvn/attack_shark_x87_rs" }
 
 Uses [`hidapi`](https://crates.io/crates/hidapi). On Linux you need a udev rule
 for `258a:010c` and `3554:fa09`, or root access.
+
+## Python and Node.js
+
+Both bindings are built from source, so a [Rust toolchain](https://rustup.rs)
+is required. The packaging files are at the repo root and the binding crates are
+in `lib/` (`lib/ask87_py`, `lib/ask87_ts`). Each binding is a typed Python or
+TypeScript layer that wraps a thin native module.
+
+### Python (3.9+)
+
+```sh
+pip install "git+https://github.com/thedtvn/attack_shark_x87_rs"
+# or
+uv add "git+https://github.com/thedtvn/attack_shark_x87_rs"
+```
+
+```python
+from ask87 import Keyboard, Effect, Key, KeyAction, ControllerAction, Macro, MacroEvent
+
+with Keyboard.open() as kb:  # "auto" | "usb" | "wireless"
+    kb.set_effect(Effect.FixedOn, brightness=4)
+    kb.remap_key(0, Key.CapsLock, KeyAction.key(0x29))  # Caps Lock -> Esc
+    kb.remap_key(1, Key.F6, KeyAction.control(ControllerAction.Bluetooth1))
+    kb.save_macros([Macro("hi", [MacroEvent.key_down(0x0B, 20), MacroEvent.key_up(0x0B)])],
+                   on_progress=lambda p: print(f"{p}%"))
+    print(Key.CapsLock.label, Key.CapsLock.rect, Key.CapsLock.group)
+```
+
+`AsyncKeyboard` has the same methods for asyncio. Each call runs in a worker
+thread with the GIL released, and `on_progress` runs on the event loop:
+
+```python
+from ask87 import AsyncKeyboard, Effect
+
+kb = await AsyncKeyboard.open()
+await kb.set_effect(Effect.FixedOn)
+macros = await kb.get_macros()
+kb.close()  # plain method; `async with` also works
+```
+
+The package ships `py.typed`. Development uses uv, ruff and ty:
+
+```sh
+uv sync               # builds the extension into .venv
+uv run pytest
+uv run ruff check && uv run ruff format --check
+uv run ty check
+```
+
+### Node.js (18+)
+
+```sh
+npm install github:thedtvn/attack_shark_x87_rs
+```
+
+The `prepare` script compiles the native module and the TypeScript. Since npm 12,
+git dependencies and their install scripts must be allowed first: put
+`allow-git=root` in `.npmrc` and `"allowScripts": { "attack-shark-x87": true }`
+in `package.json`.
+
+```ts
+import { Keyboard, Effect, Key, Keys, KeyAction, MacroEvent } from 'attack-shark-x87';
+
+const kb = await Keyboard.openAsync(); // or Keyboard.open(); 'auto' | 'usb' | 'wireless'
+await kb.setEffect(Effect.FixedOn, { brightness: 4 });
+await kb.remapKey(0, Key.CapsLock, KeyAction.key(0x29));
+await kb.saveMacros([{ name: 'hi', events: [MacroEvent.keyDown(0x0b, 20), MacroEvent.keyUp(0x0b)] }],
+  (p) => console.log(`${p}%`));
+console.log(Keys.label(Key.CapsLock), Keys.rect(Key.CapsLock));
+kb.close();
+```
+
+I/O methods return Promises and run on the libuv thread pool. Errors are
+`NotFoundError`, `InvalidArgumentError` and `DeviceError`, all subclasses of
+`X87Error`. Development: `npm run build`, `npm test`.
 
 ## Usage
 
@@ -204,6 +277,49 @@ let fw = kb.with(|k| k.firmware_version()).await?;
 - `cargo run --example async_check` reads lighting, macros and a layer
   concurrently (read-only).
 
+## Connection events and battery
+
+`Watcher` reports when the keyboard is plugged in or unplugged over USB, and
+when the 2.4G link goes up or down (keyboard wakes, sleeps or is switched off).
+Each 2.4G event also says whether the USB receiver is plugged in. It reports the
+battery too. It uses its own HID handles, so it runs alongside an open
+`Keyboard`.
+
+```rust,no_run
+use attack_shark_x87::{watch, Event, Keyboard, Watcher};
+# fn example() -> Result<(), attack_shark_x87::Error> {
+println!("{:?}", watch::status()?); // Status { usb, receiver, wireless }
+let w = Watcher::start(|e| match e {
+    Event::Usb { connected } => println!("cable: {connected}"),
+    Event::Wireless { connected, receiver } => println!("2.4G link: {connected}, receiver plugged in: {receiver}"),
+    Event::Battery(b) => println!("battery {}% charging={}", b.percent, b.charging),
+})?;
+let kb = Keyboard::open()?;
+// None = connected by USB cable (no battery reading there) or 2.4G link down.
+println!("{:?} linked={}", kb.battery()?, kb.is_linked()?);
+w.stop();
+# Ok(()) }
+```
+
+Over 2.4G the receiver sends `13 0A .. .. .. 02 xx` when the link changes and
+`.. 05 pp ss` with the battery level. `Keyboard::battery` asks for the battery
+with cmd `0x4A`, which replies `13 4A 00 00 00 pp ss`. Over the USB cable the
+keyboard gives no battery reading. The vendor app never asks for it there either;
+the 4 bytes cmd `0x09` returns aren't a battery level.
+
+Events are also available from an open keyboard: `kb.watch(callback)` in
+Rust and Python, `async for e in kb.watch()` on `AsyncKeyboard`, and
+`kb.watch().on('wireless', …)` in Node. Watchers started this way stop when
+the keyboard is closed. The standalone `Watcher` is for waiting until a
+keyboard is plugged in, before any is open.
+
+Python: `Keyboard.battery()`, `is_linked()`, `Watcher(callback)`,
+`AsyncWatcher` (`async for event in AsyncWatcher()`) and `connection_status()`.
+Node: `kb.battery()`, `kb.isLinked()`, `new Watcher()` (an EventEmitter with
+`'usb' | 'wireless' | 'battery' | 'event'` events that also works with
+`for await`) and `connectionStatus()`. Both return `None` / `null` from
+`battery()` when connected by cable.
+
 ## Controller bindings
 
 ```rust,no_run
@@ -227,14 +343,10 @@ returns the vendor FN1 mapping. FN2/Tap are not assumed to share FN1 defaults.
 FN encodes as `0D 00 00 00`; FN2 as `0D 01 00 00`. Unknown words stay `Raw`.
 `KeyAction::try_encode()` validates macro slots/counts without panicking;
 `remap_key` uses it before device I/O. Connection controls may disconnect the
-keyboard, and reset may erase settings. Remapped hold behavior is experimental.
+keyboard, and reset may erase settings.
 `cargo run --example controller` prints bytes offline without opening hardware.
 
-## Experimental onboard macros
-
-Macro playback is encoded from reverse-engineered vendor code and covered by
-byte fixtures, **not hardware playback verification**. Until-released and
-until-any-key mode semantics remain experimental.
+## Onboard macros
 
 ```rust,no_run
 use attack_shark_x87::{Keyboard, Key, KeyAction};
@@ -269,8 +381,7 @@ kb.remap_key(0, Key::F12, KeyAction::Macro { slot: 0, repeat: MacroRepeat::Times
   checked. A key bound to slot `n` plays whatever is now in slot `n`; a key
   bound past the end of the bank does nothing.
 - `macro_bank()` reads the bank (USB, or eight tagged 512-byte pages over
-  2.4G via command `43`, vendor wrapper `00487d20`). A 2.4G write + read +
-  restore was verified on hardware once; playback is not yet validated.
+  2.4G via command `43`, vendor wrapper `00487d20`).
 - `cargo run --example wireless_macro_check` reads the bank read-only and
   prints timings (2.4G: ~1.9 s for the bank, ~1.9 s for four layers).
 - `cargo run --example save_progress_check -- --confirm` writes a test bank,

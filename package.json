@@ -1,0 +1,36 @@
+{
+  "name": "attack-shark-x87",
+  "version": "0.1.0",
+  "description": "Node.js bindings for the ATTACK SHARK X87 keyboard (USB and 2.4G)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thedtvn/attack_shark_x87_rs.git"
+  },
+  "keywords": ["keyboard", "hid", "rgb", "attack-shark", "x87"],
+  "main": "lib/ask87_ts/dist/index.js",
+  "types": "lib/ask87_ts/dist/index.d.ts",
+  "files": [
+    "lib/ask87_ts/dist",
+    "lib/ask87_ts/native/*.node",
+    "lib/ask87_ts/native/native.d.ts"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "napi": {
+    "binaryName": "ask87"
+  },
+  "scripts": {
+    "build:native": "napi build --release --manifest-path lib/ask87_ts/Cargo.toml --package-json-path package.json --output-dir lib/ask87_ts/native --dts native.d.ts",
+    "build:ts": "tsc -p lib/ask87_ts/tsconfig.json",
+    "build": "npm run build:native && npm run build:ts",
+    "prepare": "npm run build",
+    "test": "node --test lib/ask87_ts/test/*.test.js"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "3.10.12",
+    "@types/node": "^22",
+    "typescript": "^5"
+  }
+}
