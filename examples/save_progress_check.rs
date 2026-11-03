@@ -26,7 +26,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let save = |bank: &MacroBank| -> Result<(), attack_shark_x87::Error> {
         let start = Instant::now();
         let mut seen = Vec::new();
-        kb.save_macro_bank(bank, &mut |p| seen.push(p.percent))?;
+        kb.save_macro_bank(bank, Some(&mut |p| seen.push(p.percent)))?;
         assert_eq!(seen.first(), Some(&0));
         assert_eq!(seen.last(), Some(&100));
         assert!(seen.windows(2).all(|w| w[0] < w[1]), "progress went backwards");

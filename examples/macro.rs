@@ -22,11 +22,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if std::env::args().any(|a| a == "--upload") {
         eprintln!("Replacing shared macro bank: existing slot contents may change on all layers.");
         let kb = Keyboard::open()?;
-        kb.save_macro_bank(&bank, &mut |p| {
+        kb.save_macro_bank(&bank, Some(&mut |p| {
             let filled = p.percent as usize / 4;
             print!("\rSaving macros [{}{}] {:>3}%", "#".repeat(filled), " ".repeat(25 - filled), p.percent);
             std::io::stdout().flush().ok();
-        })?;
+        }))?;
         println!("\nSaved. No keys assigned.");
     } else {
         println!("No hardware accessed. Back up before explicitly uploading.");

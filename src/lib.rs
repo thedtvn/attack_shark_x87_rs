@@ -489,12 +489,13 @@ impl Keyboard {
     /// key bound past the end of the bank does nothing. Not atomic: a failed
     /// write may leave the bank partially written; saving again fixes it.
     ///
-    /// `on_progress` receives a non-decreasing percentage ending at 100 on
-    /// success. Over 2.4G this takes about 10 s.
+    /// `on_progress` (optional, pass `None` to skip) receives a
+    /// non-decreasing percentage ending at 100 on success. Over 2.4G this
+    /// takes about 10 s.
     pub fn save_macro_bank(
         &self,
         bank: &macros::MacroBank,
-        on_progress: &mut dyn FnMut(SaveProgress),
+        on_progress: Option<&mut dyn FnMut(SaveProgress)>,
     ) -> Result<()> {
         let bytes = bank.encode()?;
         let mut r = progress::Reporter::new(on_progress);
@@ -510,12 +511,12 @@ impl Keyboard {
         if bank.macros.is_empty() {
             return Err(Error::InvalidArgument("refusing empty macro bank; use clear_macro_bank"));
         }
-        self.save_macro_bank(bank, &mut |_| {})
+        self.save_macro_bank(bank, None)
     }
 
     /// Write an empty bank.
     pub fn clear_macro_bank(&self) -> Result<()> {
-        self.save_macro_bank(&macros::MacroBank::default(), &mut |_| {})
+        self.save_macro_bank(&macros::MacroBank::default(), None)
     }
 
     // ---- device options ---------------------------------------------------

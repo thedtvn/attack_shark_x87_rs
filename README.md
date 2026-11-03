@@ -161,7 +161,8 @@ let bank = MacroBank { macros: vec![Macro {
     ],
 }] };
 // Replaces the whole shared bank used by all layers (about 10 s over 2.4G).
-kb.save_macro_bank(&bank, &mut |p| println!("saving {}%", p.percent))?;
+kb.save_macro_bank(&bank, Some(&mut |p| println!("saving {}%", p.percent)))?;
+// Or without progress: kb.save_macro_bank(&bank, None)?;
 // Bind a key deliberately; saving the bank never changes key bindings.
 kb.remap_key(0, "F12", KeyAction::Macro { slot: 0, repeat: MacroRepeat::Times(1) })?;
 # Ok(()) }
