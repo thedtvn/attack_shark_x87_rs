@@ -169,19 +169,23 @@ There is no audio-reactive firmware effect. The vendor app's Music page:
 While frames keep arriving they override the stored effect. Keys not listed
 in a frame are dark. Stopping restores the stored effect.
 
-Frame payload (max 200 bytes), groups of keys sharing a colour:
+Two frame formats; each transport only handles one of them correctly:
 
 ```
-repeat { R, G, B, count, led_index × count }
+compact (2.4G, max 200 bytes):  repeat { R, G, B, count, led_index × count }
+full    (USB,  0x17A bytes):     R, G, B for LED 0, 1, … 125 (unset = 0,0,0)
 ```
 
-| transport | command | sub | notes |
-|-----------|---------|-----|-------|
-| 2.4G      | 0x88    | 1 = frame, 2 = end | no ack; ~10 ms between 14-byte packets or the frame breaks up (verified) |
-| USB       | 0x08    | 0   | feature report, 7 ms delay |
+| transport | command | sub | format | notes |
+|-----------|---------|-----|--------|-------|
+| 2.4G      | 0x88    | 1 = frame, 2 = end | compact | no ack; ~10 ms between 14-byte packets or the frame breaks up (verified) |
+| USB       | 0x08    | 0   | full | one feature report, 7 ms delay (verified) |
 
-End streaming with `[0,0,0]` and sub 2. A full 126×3 RGB variant (0x17A bytes)
-exists in the code for other device types; the X87 dongle ignores it.
+Over the cable the firmware misreads compact frames: only roughly the first 16
+LEDs of each colour group light, the rest stay dark or show stray colours.
+Splitting groups into ≤ 16 keys works around it, but the full frame
+(`Music_RenderFrame`'s `+0x234 == 1` path) lights every key in any colour mix
+and is what the library sends over USB. End streaming with `[0,0,0]` and sub 2.
 
 Rust API: `Keyboard::send_frame(&Frame)`, `send_frame_lossy`, `stop_realtime`,
 `send_frame_raw`; see `examples/realtime.rs`.

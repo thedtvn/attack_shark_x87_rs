@@ -597,13 +597,20 @@ impl Keyboard {
     /// effect while frames keep coming; call this in a loop (20-60 ms) and
     /// finish with [`Keyboard::stop_realtime`].
     pub fn send_frame(&self, frame: &Frame) -> Result<()> {
-        self.send_frame_raw(realtime::SUB_FRAME, &frame.encode()?)
+        match self.t {
+            // The cable takes full frames: no colour limit.
+            Transport::Wired { .. } => self.send_frame_raw(realtime::SUB_FRAME, &frame.encode_full()),
+            Transport::Wireless(_) => self.send_frame_raw(realtime::SUB_FRAME, &frame.encode()?),
+        }
     }
 
-    /// Like [`Keyboard::send_frame`] but drops colour groups that don't fit
-    /// in 200 bytes instead of failing.
+    /// Like [`Keyboard::send_frame`] but, over 2.4G, drops colour groups that
+    /// don't fit in 200 bytes instead of failing. Over USB nothing is dropped.
     pub fn send_frame_lossy(&self, frame: &Frame) -> Result<()> {
-        self.send_frame_raw(realtime::SUB_FRAME, &frame.encode_lossy())
+        match self.t {
+            Transport::Wired { .. } => self.send_frame_raw(realtime::SUB_FRAME, &frame.encode_full()),
+            Transport::Wireless(_) => self.send_frame_raw(realtime::SUB_FRAME, &frame.encode_lossy()),
+        }
     }
 
     /// End realtime mode; the keyboard goes back to its stored effect.
@@ -611,10 +618,17 @@ impl Keyboard {
         self.send_frame_raw(realtime::SUB_END, &[0, 0, 0])
     }
 
-    /// Send an already encoded realtime payload (max 200 bytes).
+    /// Send an already encoded realtime payload.
+    ///
+    /// Over USB this is a full frame ([`realtime::FULL_FRAME_LEN`] bytes, see
+    /// [`Frame::encode_full`]); over 2.4G a compact frame of at most 200 bytes.
     pub fn send_frame_raw(&self, sub: u8, data: &[u8]) -> Result<()> {
-        if data.len() > realtime::MAX_FRAME_LEN {
-            return Err(Error::InvalidArgument("realtime frame > 200 bytes"));
+        let max = match self.t {
+            Transport::Wired { .. } => realtime::FULL_FRAME_LEN,
+            Transport::Wireless(_) => realtime::MAX_FRAME_LEN,
+        };
+        if data.len() > max {
+            return Err(Error::InvalidArgument("realtime frame too large"));
         }
         match &self.t {
             Transport::Wired { dev, report_id, .. } => {

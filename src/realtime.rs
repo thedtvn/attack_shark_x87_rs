@@ -13,27 +13,31 @@
 //!
 //! # Wire format
 //!
-//! Compact colour groups, at most 200 bytes:
+//! The transport picks the format; [`crate::Keyboard::send_frame`] handles it.
 //!
-//! ```text
-//! repeat { R, G, B, count, led_index × count }
-//! ```
+//! * 2.4G dongle: compact colour groups, at most 200 bytes, command 0x88 over
+//!   the 20-byte transport, sub = 1, no acks, about 10 ms between packets:
 //!
-//! * 2.4G dongle: command 0x88 over the 20-byte transport, sub = 1, no acks,
-//!   about 10 ms between packets. Verified on hardware.
-//! * USB cable: command 0x08 feature report (`G5KB_SetMusicRealData`). Not yet
-//!   tested on hardware.
+//!   ```text
+//!   repeat { R, G, B, count, led_index × count }
+//!   ```
+//!
+//! * USB cable: full frame, 126 × RGB by LED index (0x17A bytes, the vendor's
+//!   `+0x234 == 1` path in `Music_RenderFrame`), command 0x08 feature report
+//!   (`G5KB_SetMusicRealData`). The cable firmware misreads compact frames:
+//!   keys after the first ~16 of a colour group stay dark or show garbage.
+//!   Hardware-verified: full frames light every key, in any colour mix.
 //! * End streaming: `[0, 0, 0]` with sub = 2.
-//!
-//! The app also has a full 126×RGB frame variant (0x17A bytes) for another
-//! device type; the X87 dongle ignores it.
 
 use std::collections::BTreeMap;
 
 use crate::{layout::LED_SLOTS, Error, Result, Rgb};
 
-/// Largest frame the firmware accepts (the driver clamps to 200).
+/// Largest compact frame the 2.4G firmware accepts (the driver clamps to 200).
 pub const MAX_FRAME_LEN: usize = 200;
+
+/// Full frame over USB: one RGB triple per LED slot (126 × 3 = 0x17A).
+pub const FULL_FRAME_LEN: usize = LED_SLOTS * 3;
 
 /// Frame type sent in the sub-index field.
 pub const SUB_FRAME: u8 = 1;
@@ -103,6 +107,17 @@ impl Frame {
             g.entry([r, gg, b]).or_default().push(led);
         }
         g
+    }
+
+    /// Full-frame format used over the USB cable: [`LED_SLOTS`] × RGB
+    /// (0x17A bytes) by LED index, unset LEDs black. Any number of colours.
+    pub fn encode_full(&self) -> Vec<u8> {
+        let mut out = vec![0u8; FULL_FRAME_LEN];
+        for (&led, &Rgb(r, g, b)) in &self.leds {
+            let i = led as usize * 3;
+            out[i..i + 3].copy_from_slice(&[r, g, b]);
+        }
+        out
     }
 
     /// Encode to the compact wire format. Fails if it doesn't fit.
